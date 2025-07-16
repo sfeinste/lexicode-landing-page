@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth-store';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -16,7 +17,11 @@ import { BillingPage } from '@/pages/billing/BillingPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   return (
     <div className="min-h-screen bg-gray-50">

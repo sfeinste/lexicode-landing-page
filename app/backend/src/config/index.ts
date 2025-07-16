@@ -67,4 +67,12 @@ export const config = {
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  
+  // Supabase
+  supabase: {
+    url: process.env.SUPABASE_URL || 'https://smbdnfkuqajwbdjwddym.supabase.co',
+    anonKey: process.env.SUPABASE_ANON_KEY || '',
+    serviceKey: process.env.SUPABASE_SERVICE_KEY || '',
+    jwtSecret: process.env.SUPABASE_JWT_SECRET || '',
+  },
 };

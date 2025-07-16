@@ -28,7 +28,7 @@ export const errorHandler = (
   });
 
   // Send error response
-  const errorResponse = {
+  const errorResponse: any = {
     error: {
       message: statusCode === 500 ? 'Internal server error' : err.message,
       statusCode,
@@ -39,7 +39,7 @@ export const errorHandler = (
 
   // Include stack trace in development
   if (process.env.NODE_ENV === 'development') {
-    errorResponse.error['stack'] = err.stack;
+    errorResponse.error.stack = err.stack;
   }
 
   res.status(statusCode).json(errorResponse);

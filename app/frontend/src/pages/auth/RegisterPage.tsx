@@ -31,11 +31,15 @@ export const RegisterPage = () => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      // TODO: Show error
+      // TODO: Show error or use a proper error state
       return;
     }
 
-    await register(formData);
+    await register({
+      email: formData.email,
+      password: formData.password,
+      fullName: formData.fullName
+    });
   };
 
   return (

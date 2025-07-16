@@ -48,7 +48,7 @@ setupRoutes(app);
 // Error handling middleware
 app.use(errorHandler);
 
-const PORT = config.port || 3000;
+const PORT = config.port || 3001;
 
 app.listen(PORT, () => {
   logger.info(`🚀 Lexicode Backend Server running on port ${PORT}`);
