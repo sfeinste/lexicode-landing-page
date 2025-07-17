@@ -7,6 +7,7 @@ import { Layout } from '@/components/Layout';
 // Public pages
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
+import { GitHubCallback } from '@/pages/auth/GitHubCallback';
 import { LandingPage } from '@/pages/LandingPage';
 
 // Protected pages
@@ -17,7 +18,7 @@ import { BillingPage } from '@/pages/billing/BillingPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 
 function App() {
-  const { isAuthenticated, initializeAuth } = useAuthStore();
+  const { initializeAuth } = useAuthStore();
 
   useEffect(() => {
     initializeAuth();
@@ -30,6 +31,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
         {/* Protected routes */}
         <Route

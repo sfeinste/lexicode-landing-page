@@ -1,6 +1,52 @@
+import { useState, useEffect } from 'react';
 import { FolderGit2, FileText, Clock, TrendingUp } from 'lucide-react';
+import { GitHubIntegration } from '@/components/GitHubIntegration';
+import { RepositoryManager } from '@/components/RepositoryManager';
+import { useGitHub } from '@/hooks/useGitHub';
 
 export const DashboardPage = () => {
+  const { getRepositoryCount, checkInstallationStatus } = useGitHub();
+  const [repositoryCount, setRepositoryCount] = useState(0);
+  const [hasGitHubConnection, setHasGitHubConnection] = useState(false);
+  const [showGitHubIntegration, setShowGitHubIntegration] = useState(false);
+  const [showRepositoryManager, setShowRepositoryManager] = useState(false);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const hasConnection = await checkInstallationStatus();
+      setHasGitHubConnection(hasConnection);
+      
+      if (hasConnection) {
+        const count = await getRepositoryCount();
+        setRepositoryCount(count);
+      }
+    };
+
+    loadStats();
+  }, [checkInstallationStatus, getRepositoryCount]);
+
+  const handleConnectRepository = () => {
+    if (hasGitHubConnection) {
+      setShowRepositoryManager(true);
+    } else {
+      setShowGitHubIntegration(true);
+    }
+  };
+
+  const handleInstallationComplete = async () => {
+    setShowGitHubIntegration(false);
+    const count = await getRepositoryCount();
+    setRepositoryCount(count);
+    setHasGitHubConnection(true);
+  };
+
+  const handleRepositoryManagerClose = async () => {
+    setShowRepositoryManager(false);
+    // Refresh repository count after changes
+    const count = await getRepositoryCount();
+    setRepositoryCount(count);
+  };
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
@@ -20,7 +66,7 @@ export const DashboardPage = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Connected Repositories</p>
-              <p className="text-2xl font-semibold text-gray-900">0</p>
+              <p className="text-2xl font-semibold text-gray-900">{repositoryCount}</p>
             </div>
           </div>
         </div>
@@ -68,27 +114,67 @@ export const DashboardPage = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No recent activity</p>
+            <p className="text-gray-500">
+              {hasGitHubConnection ? 'No recent activity' : 'No repositories connected'}
+            </p>
             <p className="text-sm text-gray-400 mt-2">
-              Connect your first repository to get started
+              {hasGitHubConnection 
+                ? 'Repository activity will appear here'
+                : 'Connect your first repository to get started'
+              }
             </p>
           </div>
         </div>
       </div>
 
+      {/* GitHub Integration */}
+      {showGitHubIntegration && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">GitHub Integration</h2>
+          <GitHubIntegration onInstallationComplete={handleInstallationComplete} />
+        </div>
+      )}
+
+      {/* Repository Manager Modal */}
+      {showRepositoryManager && (
+        <RepositoryManager onClose={handleRepositoryManagerClose} />
+      )}
+
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+          <button 
+            onClick={handleConnectRepository}
+            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+          >
             <FolderGit2 className="h-6 w-6 text-blue-600 mb-2" />
-            <h3 className="font-medium text-gray-900">Connect Repository</h3>
-            <p className="text-sm text-gray-500">Link your GitHub repository to start generating documentation</p>
+            <h3 className="font-medium text-gray-900">
+              {hasGitHubConnection ? 'Manage Repositories' : 'Connect Repository'}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {hasGitHubConnection 
+                ? 'View and manage your connected GitHub repositories'
+                : 'Link your GitHub repository to start generating documentation'
+              }
+            </p>
           </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+          <button 
+            className={`p-4 border border-gray-200 rounded-lg text-left transition-colors ${
+              hasGitHubConnection 
+                ? 'hover:bg-gray-50 cursor-pointer' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+            disabled={!hasGitHubConnection}
+          >
             <FileText className="h-6 w-6 text-green-600 mb-2" />
             <h3 className="font-medium text-gray-900">Generate Documentation</h3>
-            <p className="text-sm text-gray-500">Create comprehensive documentation for your codebase</p>
+            <p className="text-sm text-gray-500">
+              {hasGitHubConnection
+                ? 'Create comprehensive documentation for your codebase'
+                : 'Connect a repository first to enable documentation generation'
+              }
+            </p>
           </button>
         </div>
       </div>

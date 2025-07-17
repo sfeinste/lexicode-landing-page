@@ -25,11 +25,20 @@ export const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   
-  // GitHub OAuth
+  // GitHub OAuth (legacy - keeping for backward compatibility)
   github: {
     clientId: process.env.GITHUB_CLIENT_ID || '',
     clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
     redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/auth/github/callback',
+  },
+
+  // GitHub App (new integration)
+  githubApp: {
+    appId: process.env.GITHUB_APP_ID || '',
+    appSlug: process.env.GITHUB_APP_SLUG || '',
+    privateKey: process.env.GITHUB_APP_PRIVATE_KEY || '',
+    webhookSecret: process.env.GITHUB_APP_WEBHOOK_SECRET || '',
+    webhookUrl: process.env.GITHUB_APP_WEBHOOK_URL || 'https://smee.io/KQg6S8n37xssNQtE/api/v1/auth/github-app/webhook',
   },
   
   // Stripe

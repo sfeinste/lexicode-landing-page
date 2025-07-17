@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authController, authValidation } from '../controllers/auth-controller';
 import { authMiddleware } from '../middleware/auth-middleware';
+import githubAppRoutes from './github-app-routes';
 
 const router = Router();
 
@@ -9,9 +10,12 @@ router.post('/register', authValidation.register, authController.register.bind(a
 router.post('/login', authValidation.login, authController.login.bind(authController));
 router.post('/refresh-token', authController.refreshToken.bind(authController));
 
-// GitHub OAuth routes
+// GitHub OAuth routes (legacy)
 router.get('/github', authController.githubAuth.bind(authController));
 router.get('/github/callback', authController.githubCallback.bind(authController));
+
+// GitHub App routes
+router.use('/github-app', githubAppRoutes);
 
 // Protected routes
 router.use(authMiddleware);

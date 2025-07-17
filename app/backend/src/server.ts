@@ -6,6 +6,7 @@ import { config } from '@/config';
 import { logger } from '@/shared/logger';
 import { errorHandler } from '@/middleware/error-handler';
 import { requestLogger } from '@/middleware/request-logger';
+import { rawBodyMiddleware, webhookHeadersMiddleware } from '@/middleware/webhook-middleware';
 import { setupRoutes } from '@/routes';
 
 const app = express();
@@ -19,11 +20,15 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 1 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api/', limiter);
+
+// Webhook middleware (must come before body parsing)
+app.use(webhookHeadersMiddleware);
+app.use(rawBodyMiddleware);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
