@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Download, RefreshCw, Loader } from 'lucide-react';
+import { ArrowLeft, FileText, Download, RefreshCw, Loader, ToggleLeft, ToggleRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api, apiLongRunning } from '@/services/api';
+import { MultiPageDocumentationView } from '@/components/MultiPageDocumentationView';
+import { documentationApi } from '@/services/documentation';
 
 interface Documentation {
   id: string;
@@ -21,10 +23,15 @@ export const DocumentationViewPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
+  const [hasFileDocumentation, setHasFileDocumentation] = useState(false);
+  const [repositoryName, setRepositoryName] = useState<string>('');
 
   useEffect(() => {
     if (repositoryId) {
       loadDocumentation();
+      checkFileDocumentation();
+      loadRepositoryInfo();
     }
   }, [repositoryId]);
 
@@ -47,16 +54,44 @@ export const DocumentationViewPage = () => {
     }
   };
 
+  const checkFileDocumentation = async () => {
+    try {
+      const response = await documentationApi.getFiles(repositoryId!);
+      setHasFileDocumentation(response.total_files > 0);
+    } catch (error) {
+      console.error('Failed to check file documentation:', error);
+    }
+  };
+
+  const loadRepositoryInfo = async () => {
+    try {
+      const response = await api.get(`/api/v1/repositories/${repositoryId}`);
+      setRepositoryName(response.data.repo_full_name || 'Repository');
+    } catch (error) {
+      console.error('Failed to load repository info:', error);
+    }
+  };
+
   const handleRegenerate = async () => {
     try {
       setRegenerating(true);
       setError(null);
       
-      await apiLongRunning.post(`/api/v1/documentation/generate/${repositoryId}`);
+      if (viewMode === 'multi' || hasFileDocumentation) {
+        // Generate file-based documentation
+        await documentationApi.generateFiles(repositoryId!);
+      } else {
+        // Generate single-page documentation
+        await apiLongRunning.post(`/api/v1/documentation/generate/${repositoryId}`);
+      }
       
       // Wait a bit then reload
       setTimeout(() => {
-        loadDocumentation();
+        if (viewMode === 'multi') {
+          checkFileDocumentation();
+        } else {
+          loadDocumentation();
+        }
       }, 3000);
       
     } catch (error) {
@@ -91,86 +126,127 @@ export const DocumentationViewPage = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => navigate('/repositories')}
-            className="p-2 hover:bg-gray-100 rounded-md"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Repository Documentation</h1>
-            {documentation && (
-              <p className="text-sm text-gray-500 mt-1">
-                Last updated: {new Date(documentation.updated_at).toLocaleString()}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium ${
-              regenerating
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'text-gray-700 bg-white hover:bg-gray-50'
-            }`}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${regenerating ? 'animate-spin' : ''}`} />
-            {regenerating ? 'Regenerating...' : 'Regenerate'}
-          </button>
-          <button
-            onClick={handleDownload}
-            disabled={!documentation}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="bg-white rounded-lg shadow">
-        {error ? (
-          <div className="p-12 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-6">{error}</p>
-            {!documentation && (
-              <button
-                onClick={handleRegenerate}
-                disabled={regenerating}
-                className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {regenerating ? 'Generating...' : 'Generate Documentation'}
-              </button>
-            )}
-          </div>
-        ) : documentation ? (
-          <div className="p-8">
-            <div className="prose prose-blue max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {documentation.content}
-              </ReactMarkdown>
+      {/* Header - Only show in single page mode */}
+      {viewMode === 'single' && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/repositories')}
+              className="p-2 hover:bg-gray-100 rounded-md"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Repository Documentation</h1>
+              {documentation && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Last updated: {new Date(documentation.updated_at).toLocaleString()}
+                </p>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="p-12 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-6">No documentation found for this repository.</p>
+          <div className="flex items-center space-x-3">
+            {/* View mode toggle */}
+            {(hasFileDocumentation || documentation) && (
+              <button
+                onClick={() => setViewMode(viewMode === 'single' ? 'multi' : 'single')}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                title={`Switch to ${viewMode === 'single' ? 'multi-page' : 'single-page'} view`}
+              >
+                {viewMode === 'single' ? <ToggleLeft className="h-4 w-4 mr-2" /> : <ToggleRight className="h-4 w-4 mr-2" />}
+                {viewMode === 'single' ? 'Multi-Page View' : 'Single-Page View'}
+              </button>
+            )}
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium ${
+                regenerating
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 bg-white hover:bg-gray-50'
+              }`}
             >
-              {regenerating ? 'Generating...' : 'Generate Documentation'}
+              <RefreshCw className={`h-4 w-4 mr-2 ${regenerating ? 'animate-spin' : ''}`} />
+              {regenerating ? 'Regenerating...' : 'Regenerate'}
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={!documentation}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Content */}
+      {viewMode === 'multi' ? (
+        <div className="bg-white rounded-lg shadow h-[calc(100vh-200px)]">
+          <MultiPageDocumentationView
+            repositoryId={repositoryId!}
+            repositoryName={repositoryName}
+            onRegenerate={handleRegenerate}
+          />
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow">
+          {error ? (
+            <div className="p-12 text-center">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-6">{error}</p>
+              {!documentation && !hasFileDocumentation && (
+                <button
+                  onClick={handleRegenerate}
+                  disabled={regenerating}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {regenerating ? 'Generating...' : 'Generate Documentation'}
+                </button>
+              )}
+              {!documentation && hasFileDocumentation && (
+                <button
+                  onClick={() => setViewMode('multi')}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                >
+                  View File Documentation
+                </button>
+              )}
+            </div>
+          ) : documentation ? (
+            <div className="p-8">
+              <div className="prose prose-blue max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {documentation.content}
+                </ReactMarkdown>
+              </div>
+            </div>
+          ) : (
+            <div className="p-12 text-center">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-6">No documentation found for this repository.</p>
+              <div className="space-x-4">
+                <button
+                  onClick={handleRegenerate}
+                  disabled={regenerating}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {regenerating ? 'Generating...' : 'Generate Documentation'}
+                </button>
+                {hasFileDocumentation && (
+                  <button
+                    onClick={() => setViewMode('multi')}
+                    className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700"
+                  >
+                    View File Documentation
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

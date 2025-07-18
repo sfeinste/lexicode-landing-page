@@ -167,7 +167,7 @@ export const RepositoriesPage = () => {
       setLoadingStates(prev => ({ ...prev, [repoId]: true }));
       setErrorStates(prev => ({ ...prev, [repoId]: null }));
       
-      const response = await apiLongRunning.post(`/api/v1/documentation/generate/${repoId}`);
+      const response = await apiLongRunning.post(`/api/v1/documentation/generate-files/${repoId}`);
       
       const result = response.data;
       

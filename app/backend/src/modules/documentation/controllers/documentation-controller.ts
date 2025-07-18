@@ -201,4 +201,168 @@ export class DocumentationController {
       res.status(500).json({ error: 'Internal server error' });
     }
   }
+
+  /**
+   * Generate file-based documentation for a repository
+   */
+  async generateFileBasedDocumentation(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id;
+      
+      logger.info('Generate file-based documentation request', { repositoryId, userId });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      // Start file-based documentation generation
+      const result = await this.documentationService.generateFileBasedDocumentation(
+        repositoryId,
+        userId
+      );
+      
+      res.status(200).json({
+        message: 'File-based documentation generation completed',
+        result: {
+          repository_id: result.repository_id,
+          generation_id: result.generation_id,
+          files_documented: result.files.length,
+          metadata: result.metadata
+        }
+      });
+    } catch (error) {
+      logger.error('Generate file-based documentation error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  /**
+   * Get all file documentation for a repository
+   */
+  async getFileDocumentation(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id;
+      
+      logger.info('Get file documentation request', { repositoryId, userId });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      const files = await this.documentationService.getFileDocumentation(
+        repositoryId,
+        userId
+      );
+      
+      res.status(200).json({
+        repository_id: repositoryId,
+        files: files.map(file => ({
+          file_path: file.file_path,
+          file_type: file.file_type,
+          language: file.language,
+          lines_of_code: file.lines_of_code,
+          has_documentation: !!file.generated_documentation
+        })),
+        total_files: files.length
+      });
+    } catch (error) {
+      logger.error('Get file documentation error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  /**
+   * Get documentation for a specific file
+   */
+  async getFileDocumentationByPath(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id;
+      
+      // Extract file path from the URL (everything after /files/)
+      const filePath = req.params[0]; // This gets the wildcard part
+      
+      logger.info('Get file documentation by path request', { repositoryId, userId, filePath });
+      
+      if (!repositoryId || !filePath) {
+        res.status(400).json({ error: 'Repository ID and file path are required' });
+        return;
+      }
+      
+      const fileDoc = await this.documentationService.getFileDocumentationByPath(
+        repositoryId,
+        userId,
+        filePath
+      );
+      
+      if (!fileDoc) {
+        res.status(404).json({ error: 'File documentation not found' });
+        return;
+      }
+      
+      res.status(200).json({
+        file_path: fileDoc.file_path,
+        file_type: fileDoc.file_type,
+        language: fileDoc.language,
+        lines_of_code: fileDoc.lines_of_code,
+        documentation: fileDoc.generated_documentation,
+        metadata: fileDoc.metadata,
+        created_at: fileDoc.created_at,
+        updated_at: fileDoc.updated_at
+      });
+    } catch (error) {
+      logger.error('Get file documentation by path error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  /**
+   * Get documentation summary for a repository
+   */
+  async getDocumentationSummary(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id;
+      
+      logger.info('Get documentation summary request', { repositoryId, userId });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      const summary = await this.documentationService.getDocumentationSummary(
+        repositoryId,
+        userId
+      );
+      
+      if (!summary) {
+        res.status(404).json({ error: 'Documentation summary not found' });
+        return;
+      }
+      
+      res.status(200).json({
+        repository_id: summary.repository_id,
+        content: summary.content,
+        metadata: summary.metadata,
+        created_at: summary.created_at,
+        updated_at: summary.updated_at
+      });
+    } catch (error) {
+      logger.error('Get documentation summary error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
 }

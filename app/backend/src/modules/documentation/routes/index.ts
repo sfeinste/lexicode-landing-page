@@ -13,6 +13,12 @@ router.get('/', documentationController.getAllDocumentation.bind(documentationCo
 router.post('/generate/:repositoryId', documentationController.generateDocumentation.bind(documentationController));
 router.get('/:repositoryId', documentationController.getDocumentation.bind(documentationController));
 
+// File-based documentation routes
+router.post('/generate-files/:repositoryId', documentationController.generateFileBasedDocumentation.bind(documentationController));
+router.get('/:repositoryId/files', documentationController.getFileDocumentation.bind(documentationController));
+router.get('/:repositoryId/files/*', documentationController.getFileDocumentationByPath.bind(documentationController));
+router.get('/:repositoryId/summary', documentationController.getDocumentationSummary.bind(documentationController));
+
 // Legacy/future routes (keeping for compatibility)
 router.get('/projects', documentationController.getProjects.bind(documentationController));
 router.get('/projects/:id', documentationController.getProject.bind(documentationController));
