@@ -14,6 +14,7 @@ import { LandingPage } from '@/pages/LandingPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { RepositoriesPage } from '@/pages/repositories/RepositoriesPage';
 import { DocumentationPage } from '@/pages/documentation/DocumentationPage';
+import { DocumentationViewPage } from '@/pages/documentation/DocumentationViewPage';
 import { BillingPage } from '@/pages/billing/BillingPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 
@@ -60,6 +61,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <DocumentationPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documentation/:repositoryId"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <DocumentationViewPage />
               </Layout>
             </ProtectedRoute>
           }

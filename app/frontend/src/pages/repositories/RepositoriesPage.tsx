@@ -5,7 +5,7 @@ import {
   Lock, Globe, Code2, Package, AlertCircle, FileText,
   Clock, ExternalLink, MoreVertical, RefreshCw, Loader2 
 } from 'lucide-react';
-import { api } from '@/services/api';
+import { api, apiLongRunning } from '@/services/api';
 import { RepositoryManager } from '@/components/RepositoryManager';
 
 interface Repository {
@@ -48,6 +48,8 @@ export const RepositoriesPage = () => {
   const [languageFilter, setLanguageFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showRepositoryManager, setShowRepositoryManager] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [errorStates, setErrorStates] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     loadRepositories();
@@ -160,8 +162,32 @@ export const RepositoriesPage = () => {
     return date.toLocaleDateString();
   };
 
-  const handleGenerateDocs = (repoId: string) => {
-    navigate(`/documentation/generate/${repoId}`);
+  const handleGenerateDocs = async (repoId: string) => {
+    try {
+      setLoadingStates(prev => ({ ...prev, [repoId]: true }));
+      setErrorStates(prev => ({ ...prev, [repoId]: null }));
+      
+      const response = await apiLongRunning.post(`/api/v1/documentation/generate/${repoId}`);
+      
+      const result = response.data;
+      
+      // Show success message
+      alert(`Documentation generation started! Generation ID: ${result.generation?.id}`);
+      
+      // Navigate to documentation page after a short delay
+      setTimeout(() => {
+        navigate(`/documentation/${repoId}`);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to generate documentation:', error);
+      setErrorStates(prev => ({ 
+        ...prev, 
+        [repoId]: error instanceof Error ? error.message : 'Failed to generate documentation' 
+      }));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [repoId]: false }));
+    }
   };
 
   const handleViewDocs = (repoId: string) => {
@@ -327,9 +353,14 @@ export const RepositoriesPage = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleGenerateDocs(repo.id)}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            disabled={loadingStates[repo.id]}
+                            className={`px-3 py-1 text-sm rounded-md ${
+                              loadingStates[repo.id] 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            } text-white`}
                           >
-                            Generate Docs
+                            {loadingStates[repo.id] ? 'Generating...' : 'Generate Docs'}
                           </button>
                           <button
                             onClick={() => handleViewDocs(repo.id)}
@@ -342,6 +373,13 @@ export const RepositoriesPage = () => {
                           </button>
                         </div>
                       </div>
+
+                      {/* Error Message */}
+                      {errorStates[repo.id] && (
+                        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-sm text-red-800">{errorStates[repo.id]}</p>
+                        </div>
+                      )}
 
                       {/* Repository Stats */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

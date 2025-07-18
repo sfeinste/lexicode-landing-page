@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { Logger } from '../utils/logger';
+import { logger } from '@/shared/logger';
 
 export interface AnthropicResponse {
   content: string;
@@ -20,7 +20,7 @@ export interface GenerationOptions {
 
 export class AnthropicService {
   private client: Anthropic;
-  private logger = Logger.getInstance('AnthropicService');
+  // Logger is available as a singleton
   
   // Token pricing per model (per 1K tokens)
   private readonly pricing = {
@@ -53,7 +53,7 @@ export class AnthropicService {
     } = options;
 
     try {
-      this.logger.info('Generating documentation', { model, maxTokens, temperature });
+      logger.info('Generating documentation', { model, maxTokens, temperature });
       
       const response = await this.client.messages.create({
         model,
@@ -68,8 +68,9 @@ export class AnthropicService {
         ]
       });
 
-      const content = response.content[0].type === 'text' 
-        ? response.content[0].text 
+      const firstContent = response.content[0];
+      const content = firstContent && firstContent.type === 'text' 
+        ? firstContent.text 
         : '';
 
       const usage = {
@@ -80,7 +81,7 @@ export class AnthropicService {
 
       const cost = this.calculateCost(usage, model);
 
-      this.logger.info('Documentation generated successfully', { 
+      logger.info('Documentation generated successfully', { 
         model, 
         usage, 
         cost 
@@ -93,7 +94,7 @@ export class AnthropicService {
         cost
       };
     } catch (error) {
-      this.logger.error('Failed to generate documentation', error);
+      logger.error('Failed to generate documentation', error);
       throw error;
     }
   }
@@ -104,7 +105,7 @@ export class AnthropicService {
   ): number {
     const pricing = this.pricing[model as keyof typeof this.pricing];
     if (!pricing) {
-      this.logger.warn(`Unknown model pricing: ${model}, using default`);
+      logger.warn(`Unknown model pricing: ${model}, using default`);
       return 0;
     }
 
@@ -123,7 +124,7 @@ export class AnthropicService {
       });
       return true;
     } catch (error) {
-      this.logger.error('Anthropic connection test failed', error);
+      logger.error('Anthropic connection test failed', error);
       return false;
     }
   }

@@ -9,7 +9,11 @@ const documentationController = new DocumentationController();
 router.use(authMiddleware);
 
 // Documentation generation routes
-router.post('/generate', documentationController.generateDocumentation.bind(documentationController));
+router.get('/', documentationController.getAllDocumentation.bind(documentationController));
+router.post('/generate/:repositoryId', documentationController.generateDocumentation.bind(documentationController));
+router.get('/:repositoryId', documentationController.getDocumentation.bind(documentationController));
+
+// Legacy/future routes (keeping for compatibility)
 router.get('/projects', documentationController.getProjects.bind(documentationController));
 router.get('/projects/:id', documentationController.getProject.bind(documentationController));
 router.put('/projects/:id', documentationController.updateProject.bind(documentationController));

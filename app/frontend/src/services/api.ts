@@ -14,55 +14,68 @@ export const api: AxiosInstance = axios.create({
   timeout: 10000,
 });
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  (config) => {
-    const { accessToken } = useAuthStore.getState();
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Create a separate instance for long-running operations
+export const apiLongRunning: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 300000, // 5 minutes timeout for long operations
+});
 
-// Response interceptor to handle token refresh
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error: AxiosError) => {
-    const originalRequest = error.config as ExtendedAxiosRequestConfig;
-    
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
+// Function to add interceptors to an axios instance
+const addAuthInterceptors = (axiosInstance: AxiosInstance) => {
+  // Request interceptor to add auth token
+  axiosInstance.interceptors.request.use(
+    (config) => {
+      const { accessToken } = useAuthStore.getState();
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor to handle token refresh
+  axiosInstance.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    async (error: AxiosError) => {
+      const originalRequest = error.config as ExtendedAxiosRequestConfig;
       
-      try {
-        const { refreshAuth } = useAuthStore.getState();
-        await refreshAuth();
+      if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+        originalRequest._retry = true;
         
-        // Retry the original request with new token
-        const { accessToken } = useAuthStore.getState();
-        if (accessToken) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        const { logout } = useAuthStore.getState();
-        logout();
-        
-        // Redirect to login page
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+        try {
+          const { refreshAuth } = useAuthStore.getState();
+          await refreshAuth();
+          
+          // Retry the original request with new token
+          const { accessToken } = useAuthStore.getState();
+          if (accessToken) {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return axiosInstance(originalRequest);
+          }
+        } catch (refreshError) {
+          // Refresh failed, redirect to login
+          const { logout } = useAuthStore.getState();
+          logout();
+          
+          // Redirect to login page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
         }
       }
+      
+      return Promise.reject(error);
     }
-    
-    return Promise.reject(error);
-  }
-);
+  );
+};
+
+// Add interceptors to both instances
+addAuthInterceptors(api);
+addAuthInterceptors(apiLongRunning);
 
 export default api;

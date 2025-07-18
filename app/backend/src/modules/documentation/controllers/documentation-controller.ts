@@ -11,12 +11,84 @@ export class DocumentationController {
 
   async generateDocumentation(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: Implement generate documentation
-      logger.info('Generate documentation');
-      res.status(501).json({ message: 'Generate documentation not implemented yet' });
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id; // From auth middleware
+      
+      logger.info('Generate documentation request', { repositoryId, userId });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      // Start documentation generation
+      const generation = await this.documentationService.generateDocumentation(
+        repositoryId,
+        userId
+      );
+      
+      res.status(200).json({
+        message: 'Documentation generation started',
+        generation
+      });
     } catch (error) {
       logger.error('Generate documentation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  async getDocumentation(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id; // From auth middleware
+      
+      logger.info('Get documentation request', { repositoryId, userId });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      const documentation = await this.documentationService.getDocumentation(
+        repositoryId,
+        userId
+      );
+      
+      if (!documentation) {
+        res.status(404).json({ error: 'Documentation not found' });
+        return;
+      }
+      
+      res.status(200).json(documentation);
+    } catch (error) {
+      logger.error('Get documentation error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  async getAllDocumentation(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user.id; // From auth middleware
+      
+      logger.info('Get all documentation request', { userId });
+      
+      const documentation = await this.documentationService.getAllDocumentation(userId);
+      
+      logger.info('Returning documentation', { 
+        userId, 
+        documentationCount: documentation.length 
+      });
+      
+      res.status(200).json(documentation);
+    } catch (error) {
+      logger.error('Get all documentation error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
     }
   }
 
