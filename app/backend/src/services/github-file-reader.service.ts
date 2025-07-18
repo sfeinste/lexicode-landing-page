@@ -328,23 +328,197 @@ export class GitHubFileReaderService {
     owner: string,
     repo: string,
     branch: string = 'main'
-  ): Promise<Record<string, string> | null> {
+  ): Promise<any | null> {
     try {
       const { token } = await this.githubAppService.generateInstallationToken(installationId);
       const file = await this.fetchFileContent(token, owner, repo, 'package.json');
       
       if (file) {
         const packageData = JSON.parse(file.content);
-        return {
-          ...packageData.dependencies,
-          ...packageData.devDependencies
-        };
+        return packageData;
       }
       
       return null;
     } catch (error) {
       logger.debug('No package.json found', { owner, repo });
       return null;
+    }
+  }
+  
+  /**
+   * Fetch configuration files from the repository
+   */
+  async fetchConfigurationFiles(
+    installationId: number,
+    owner: string,
+    repo: string,
+    branch: string = 'main'
+  ): Promise<GitHubFile[]> {
+    try {
+      const { token } = await this.githubAppService.generateInstallationToken(installationId);
+      const configFiles: GitHubFile[] = [];
+      
+      // List of common configuration files to look for
+      const configPatterns = [
+        // JavaScript/TypeScript
+        'package.json',
+        'tsconfig.json',
+        'jsconfig.json',
+        '.eslintrc.json',
+        '.eslintrc.js',
+        '.prettierrc',
+        'webpack.config.js',
+        'vite.config.js',
+        'next.config.js',
+        'nuxt.config.js',
+        'babel.config.js',
+        'jest.config.js',
+        '.babelrc',
+        
+        // Python
+        'requirements.txt',
+        'setup.py',
+        'setup.cfg',
+        'pyproject.toml',
+        'Pipfile',
+        'poetry.lock',
+        'tox.ini',
+        '.flake8',
+        'pytest.ini',
+        
+        // Docker
+        'Dockerfile',
+        'docker-compose.yml',
+        'docker-compose.yaml',
+        '.dockerignore',
+        
+        // CI/CD
+        '.github/workflows/*.yml',
+        '.github/workflows/*.yaml',
+        '.gitlab-ci.yml',
+        '.travis.yml',
+        'Jenkinsfile',
+        '.circleci/config.yml',
+        
+        // Environment
+        '.env.example',
+        '.env.sample',
+        '.env.template',
+        
+        // Other
+        'Makefile',
+        '.editorconfig',
+        '.gitignore',
+        'LICENSE',
+        'README.md',
+        'CONTRIBUTING.md',
+        'CHANGELOG.md'
+      ];
+      
+      // Fetch each configuration file
+      for (const pattern of configPatterns) {
+        if (pattern.includes('*')) {
+          // Handle wildcard patterns (e.g., .github/workflows/*.yml)
+          const basePath = pattern.substring(0, pattern.lastIndexOf('/'));
+          const extension = pattern.substring(pattern.lastIndexOf('.'));
+          
+          try {
+            // Get files in the directory
+            const dirResponse = await axios.get(
+              `https://api.github.com/repos/${owner}/${repo}/contents/${basePath}`,
+              {
+                headers: {
+                  Authorization: `token ${token}`,
+                  Accept: 'application/vnd.github.v3+json',
+                },
+              }
+            );
+            
+            if (Array.isArray(dirResponse.data)) {
+              for (const file of dirResponse.data) {
+                if (file.type === 'file' && file.name.endsWith(extension)) {
+                  const content = await this.fetchFileContent(token, owner, repo, file.path);
+                  if (content) {
+                    configFiles.push({
+                      ...content,
+                      language: this.detectLanguage(file.path)
+                    });
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            // Directory might not exist, continue
+          }
+        } else {
+          // Single file
+          const file = await this.fetchFileContent(token, owner, repo, pattern);
+          if (file) {
+            configFiles.push({
+              ...file,
+              language: this.detectLanguage(pattern)
+            });
+          }
+        }
+      }
+      
+      logger.info('Fetched configuration files', { 
+        owner, 
+        repo, 
+        configFileCount: configFiles.length 
+      });
+      
+      return configFiles;
+    } catch (error) {
+      logger.error('Failed to fetch configuration files', { owner, repo, error });
+      return [];
+    }
+  }
+  
+  /**
+   * Analyze dependencies from various dependency files
+   */
+  async analyzeDependencies(
+    installationId: number,
+    owner: string,
+    repo: string,
+    branch: string = 'main'
+  ): Promise<Record<string, any>> {
+    try {
+      const { token } = await this.githubAppService.generateInstallationToken(installationId);
+      const dependencies: Record<string, any> = {};
+      
+      // Try to get JavaScript/TypeScript dependencies
+      const packageJson = await this.fetchPackageJson(installationId, owner, repo, branch);
+      if (packageJson) {
+        dependencies.javascript = {
+          dependencies: packageJson.dependencies || {},
+          devDependencies: packageJson.devDependencies || {},
+          scripts: packageJson.scripts || {},
+          engines: packageJson.engines || {}
+        };
+      }
+      
+      // Try to get Python dependencies
+      const requirementsTxt = await this.fetchFileContent(token, owner, repo, 'requirements.txt');
+      if (requirementsTxt) {
+        dependencies.python = {
+          requirements: requirementsTxt.content.split('\n').filter(line => line.trim() && !line.startsWith('#'))
+        };
+      }
+      
+      // Try to get pyproject.toml
+      const pyprojectToml = await this.fetchFileContent(token, owner, repo, 'pyproject.toml');
+      if (pyprojectToml) {
+        // Basic parsing of pyproject.toml (would need a proper TOML parser in production)
+        dependencies.python = dependencies.python || {};
+        dependencies.python.pyproject = pyprojectToml.content;
+      }
+      
+      return dependencies;
+    } catch (error) {
+      logger.error('Failed to analyze dependencies', { owner, repo, error });
+      return {};
     }
   }
 }

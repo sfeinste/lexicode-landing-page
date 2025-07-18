@@ -1,5 +1,6 @@
 import { GitHubFile } from './github-file-reader.service';
 import { logger } from '@/shared/logger';
+import { FileAnalysisService, DependencyGraph } from './file-analysis.service';
 
 export interface CodeChunk {
   id: string;
@@ -20,6 +21,7 @@ export interface ChunkingOptions {
 
 export class CodeChunkingService {
   // Logger is available as a singleton
+  private fileAnalysisService: FileAnalysisService;
   
   // Rough estimate: 1 token ≈ 4 characters
   private readonly CHARS_PER_TOKEN = 4;
@@ -29,9 +31,156 @@ export class CodeChunkingService {
   
   // Maximum files per chunk to avoid overwhelming context
   private readonly DEFAULT_MAX_FILES_PER_CHUNK = 20;
+  
+  constructor() {
+    this.fileAnalysisService = new FileAnalysisService();
+  }
+
+  /**
+   * Smart chunk files using dependency analysis
+   */
+  smartChunkFiles(
+    files: GitHubFile[],
+    options: ChunkingOptions = {}
+  ): CodeChunk[] {
+    const {
+      maxTokensPerChunk = this.DEFAULT_MAX_TOKENS_PER_CHUNK,
+      maxFilesPerChunk = this.DEFAULT_MAX_FILES_PER_CHUNK
+    } = options;
+
+    logger.info('Starting smart file chunking with dependency analysis', { 
+      totalFiles: files.length,
+      maxTokensPerChunk,
+      maxFilesPerChunk 
+    });
+
+    // Analyze dependencies
+    const dependencyGraph = this.fileAnalysisService.analyzeDependencies(files);
+    
+    // Group files into logical modules
+    const modules = this.fileAnalysisService.groupFilesIntoModules(dependencyGraph);
+    
+    // Create chunks from modules
+    const chunks: CodeChunk[] = [];
+    let chunkIndex = 0;
+    
+    for (const [moduleName, modulePaths] of modules) {
+      // Get actual files for this module
+      const moduleFiles = files.filter(f => modulePaths.includes(f.path));
+      
+      // Calculate total tokens for module
+      const moduleTokens = moduleFiles.reduce(
+        (sum, file) => sum + this.estimateTokens(file.content),
+        0
+      );
+      
+      // If module fits in one chunk, keep it together
+      if (moduleTokens <= maxTokensPerChunk && moduleFiles.length <= maxFilesPerChunk) {
+        chunks.push(this.createChunk(
+          moduleFiles,
+          moduleTokens,
+          chunkIndex,
+          chunkIndex + moduleFiles.length - 1,
+          files.length
+        ));
+        chunkIndex += moduleFiles.length;
+      } else {
+        // Module is too large, split it while trying to keep related files together
+        const moduleChunks = this.splitLargeModule(
+          moduleFiles,
+          dependencyGraph,
+          maxTokensPerChunk,
+          maxFilesPerChunk
+        );
+        
+        for (const moduleChunk of moduleChunks) {
+          chunks.push(this.createChunk(
+            moduleChunk.files,
+            moduleChunk.tokenEstimate,
+            chunkIndex,
+            chunkIndex + moduleChunk.files.length - 1,
+            files.length
+          ));
+          chunkIndex += moduleChunk.files.length;
+        }
+      }
+    }
+    
+    logger.info('Smart file chunking completed', { 
+      totalChunks: chunks.length,
+      totalFiles: files.length,
+      modules: modules.size
+    });
+
+    return chunks;
+  }
+  
+  /**
+   * Split a large module into smaller chunks while preserving relationships
+   */
+  private splitLargeModule(
+    moduleFiles: GitHubFile[],
+    graph: DependencyGraph,
+    maxTokensPerChunk: number,
+    maxFilesPerChunk: number
+  ): CodeChunk[] {
+    // Sort files by priority within the module
+    const sortedFiles = moduleFiles.sort((a, b) => {
+      const metaA = graph.nodes.get(a.path);
+      const metaB = graph.nodes.get(b.path);
+      return (metaB?.priority || 0) - (metaA?.priority || 0);
+    });
+    
+    const chunks: CodeChunk[] = [];
+    let currentChunk: GitHubFile[] = [];
+    let currentTokenCount = 0;
+    
+    for (const file of sortedFiles) {
+      const fileTokens = this.estimateTokens(file.content);
+      
+      if (
+        currentChunk.length > 0 && 
+        (currentTokenCount + fileTokens > maxTokensPerChunk || 
+         currentChunk.length >= maxFilesPerChunk)
+      ) {
+        chunks.push({
+          id: `module_chunk_${chunks.length}`,
+          files: currentChunk,
+          tokenEstimate: currentTokenCount,
+          metadata: {
+            startIndex: 0,
+            endIndex: currentChunk.length - 1,
+            totalFiles: moduleFiles.length
+          }
+        });
+        
+        currentChunk = [file];
+        currentTokenCount = fileTokens;
+      } else {
+        currentChunk.push(file);
+        currentTokenCount += fileTokens;
+      }
+    }
+    
+    if (currentChunk.length > 0) {
+      chunks.push({
+        id: `module_chunk_${chunks.length}`,
+        files: currentChunk,
+        tokenEstimate: currentTokenCount,
+        metadata: {
+          startIndex: 0,
+          endIndex: currentChunk.length - 1,
+          totalFiles: moduleFiles.length
+        }
+      });
+    }
+    
+    return chunks;
+  }
 
   /**
    * Split repository files into manageable chunks for LLM processing
+   * (Original method kept for backward compatibility)
    */
   chunkFiles(
     files: GitHubFile[],

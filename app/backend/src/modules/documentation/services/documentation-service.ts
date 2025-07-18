@@ -4,6 +4,8 @@ import { AnthropicService } from '@/services/anthropic.service';
 import { GitHubFileReaderService } from '@/services/github-file-reader.service';
 import { CodeChunkingService } from '@/services/code-chunking.service';
 import { PromptTemplates, CodeContext } from '@/services/prompt-templates';
+import { MultiPassGenerationService } from '@/services/multi-pass-generation.service';
+import { CodeContextExtractionService } from '@/services/code-context-extraction.service';
 
 export interface DocumentationProject {
   id: string;
@@ -58,11 +60,15 @@ export class DocumentationService {
   private anthropicService: AnthropicService;
   private githubFileReader: GitHubFileReaderService;
   private codeChunking: CodeChunkingService;
+  private multiPassGeneration: MultiPassGenerationService;
+  private codeContextExtraction: CodeContextExtractionService;
 
   constructor() {
     this.anthropicService = new AnthropicService();
     this.githubFileReader = new GitHubFileReaderService();
     this.codeChunking = new CodeChunkingService();
+    this.multiPassGeneration = new MultiPassGenerationService();
+    this.codeContextExtraction = new CodeContextExtractionService();
   }
   async createProject(data: any): Promise<DocumentationProject> {
     // TODO: Implement create project
@@ -106,7 +112,7 @@ export class DocumentationService {
     throw new Error('Not implemented');
   }
 
-  async generateDocumentation(repositoryId: string, userId: string): Promise<DocumentationGeneration> {
+  async generateDocumentation(repositoryId: string, userId: string, useMultiPass: boolean = false): Promise<DocumentationGeneration> {
     logger.info('DocumentationService: generateDocumentation called', { repositoryId, userId });
     
     const startTime = Date.now();
@@ -195,18 +201,41 @@ export class DocumentationService {
         branch
       );
       
-      const dependencies = await this.githubFileReader.fetchPackageJson(
+      const packageJson = await this.githubFileReader.fetchPackageJson(
         installation.github_installation_id,
         owner,
         name,
         branch
       );
+      
+      // Fetch configuration files
+      const configFiles = await this.githubFileReader.fetchConfigurationFiles(
+        installation.github_installation_id,
+        owner,
+        name,
+        branch
+      );
+      
+      // Analyze all dependencies
+      const dependencyAnalysis = await this.githubFileReader.analyzeDependencies(
+        installation.github_installation_id,
+        owner,
+        name,
+        branch
+      );
+      
+      // Add config files to the main files list for documentation
+      const allFiles = [...files, ...configFiles];
+      
+      // Extract enhanced context
+      logger.info('Extracting enhanced code context');
+      const enhancedContext = this.codeContextExtraction.extractEnhancedContext(allFiles);
 
-      // Create code context
+      // Create code context with enhanced information
       const codeContext: CodeContext = {
         repositoryName: repository.repo_full_name,
         language: repository.language || 'unknown',
-        files: files.map(f => {
+        files: allFiles.map(f => {
           const file: { path: string; content: string; language?: string } = {
             path: f.path,
             content: f.content
@@ -215,35 +244,126 @@ export class DocumentationService {
             file.language = f.language;
           }
           return file;
-        })
+        }),
+        packageJson: packageJson,
+        enhancedContext: {
+          typeDefinitions: enhancedContext.typeDefinitions.map(t => ({
+            name: t.name,
+            type: t.type,
+            definition: t.definition,
+            file: t.file
+          })),
+          docComments: enhancedContext.docComments.map(d => ({
+            type: d.type,
+            content: d.content,
+            file: d.file
+          })),
+          designPatterns: enhancedContext.designPatterns.map(p => ({
+            name: p.name,
+            type: p.type,
+            description: p.description,
+            files: p.files
+          })),
+          environmentVariables: enhancedContext.environmentVariables.map(e => ({
+            name: e.name,
+            ...(e.description !== undefined && { description: e.description }),
+            ...(e.defaultValue !== undefined && { defaultValue: e.defaultValue }),
+            required: e.required
+          })),
+          testExamples: enhancedContext.testExamples.map(t => ({
+            name: t.name,
+            code: t.code,
+            file: t.file
+          }))
+        }
       };
       
-      if (dependencies) {
-        codeContext.dependencies = dependencies;
+      if (packageJson) {
+        codeContext.dependencies = {
+          ...(packageJson.dependencies || {}),
+          ...(packageJson.devDependencies || {})
+        };
       }
       
       if (readme) {
         codeContext.readme = readme;
       }
+      
+      // Detect entry points from all files (including config)
+      const entryPoints = allFiles
+        .filter(f => 
+          f.path.includes('index.') || 
+          f.path.includes('main.') || 
+          f.path.includes('app.') ||
+          f.path.includes('server.') ||
+          f.path === 'cli.js' ||
+          f.path === 'bin/cli'
+        )
+        .map(f => f.path);
+        
+      if (entryPoints.length > 0) {
+        codeContext.entryPoints = entryPoints;
+      }
+      
+      // Detect project type
+      const projectType = PromptTemplates.detectProjectType(codeContext);
 
       // Check if we can process in a single request
       let documentation = '';
       let totalCost = 0;
       
-      if (this.codeChunking.canProcessInSingleRequest(files)) {
-        // Process all files in one request
+      // Decide whether to use multi-pass generation
+      if (useMultiPass && this.codeChunking.canProcessInSingleRequest(allFiles)) {
+        // Use multi-pass generation for better quality
+        logger.info('Using multi-pass documentation generation');
+        
+        const multiPassResult = await this.multiPassGeneration.generateMultiPassDocumentation(
+          codeContext,
+          {
+            projectType: projectType as any,
+            includeExamples: true,
+            style: 'comprehensive'
+          }
+        );
+        
+        documentation = multiPassResult.mergedContent;
+        totalCost = multiPassResult.totalCost;
+        
+        // Store individual sections for future use
+        await supabaseAdmin
+          .from('documentation_sections')
+          .insert(
+            multiPassResult.sections.map(section => ({
+              repository_id: repositoryId,
+              user_id: userId,
+              generation_id: generation!.id,
+              section_id: section.id,
+              title: section.title,
+              content: section.content,
+              type: section.type,
+              pass: section.pass,
+              metadata: section.metadata
+            }))
+          );
+          
+      } else if (this.codeChunking.canProcessInSingleRequest(allFiles)) {
+        // Process all files in one request (standard single-pass)
         logger.info('Processing all files in single request');
         
-        const prompt = PromptTemplates.generateDocumentationPrompt(codeContext);
+        const prompt = PromptTemplates.generateDocumentationPrompt(codeContext, {
+          projectType: projectType as any,
+          includeExamples: true,
+          style: 'comprehensive'
+        });
         const response = await this.anthropicService.generateDocumentation(prompt);
         
         documentation = response.content;
         totalCost = response.cost;
       } else {
-        // Process in chunks
-        logger.info('Processing files in chunks');
+        // Process in chunks using smart chunking
+        logger.info('Processing files in chunks using smart dependency analysis');
         
-        const chunks = this.codeChunking.chunkFiles(files);
+        const chunks = this.codeChunking.smartChunkFiles(allFiles);
         const chunkResults: string[] = [];
         
         for (const chunk of chunks) {
@@ -266,11 +386,31 @@ export class DocumentationService {
             })
           };
           
-          const prompt = PromptTemplates.generateDocumentationPrompt(chunkContext);
-          const response = await this.anthropicService.generateDocumentation(prompt);
-          
-          chunkResults.push(response.content);
-          totalCost += response.cost;
+          if (useMultiPass) {
+            // Use multi-pass for each chunk
+            const multiPassResult = await this.multiPassGeneration.generateMultiPassDocumentation(
+              chunkContext,
+              {
+                projectType: projectType as any,
+                includeExamples: true,
+                style: 'comprehensive'
+              }
+            );
+            
+            chunkResults.push(multiPassResult.mergedContent);
+            totalCost += multiPassResult.totalCost;
+          } else {
+            // Standard single-pass for each chunk
+            const prompt = PromptTemplates.generateDocumentationPrompt(chunkContext, {
+              projectType: projectType as any,
+              includeExamples: true,
+              style: 'comprehensive'
+            });
+            const response = await this.anthropicService.generateDocumentation(prompt);
+            
+            chunkResults.push(response.content);
+            totalCost += response.cost;
+          }
         }
         
         // Combine chunk results
@@ -302,11 +442,12 @@ export class DocumentationService {
         .from('documentation_generations')
         .update({
           status: 'completed',
-          files_processed: files.length,
+          files_processed: allFiles.length,
           processing_time_seconds: processingTime,
           completed_at: new Date().toISOString(),
           output_data: {
-            total_files: files.length,
+            total_files: allFiles.length,
+            config_files: configFiles.length,
             total_cost: totalCost,
             documentation_length: documentation.length
           }
