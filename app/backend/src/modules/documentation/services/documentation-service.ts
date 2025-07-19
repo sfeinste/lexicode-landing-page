@@ -122,7 +122,29 @@ export class DocumentationService {
   }
 
   async generateDocumentation(repositoryId: string, userId: string, useMultiPass: boolean = false): Promise<DocumentationGeneration> {
-    logger.info('DocumentationService: generateDocumentation called', { repositoryId, userId });
+    logger.info('DocumentationService: generateDocumentation called - redirecting to file-based generation', { repositoryId, userId });
+    
+    // Always use file-based generation now
+    const result = await this.generateFileBasedDocumentation(repositoryId, userId);
+    
+    // Convert the result to match the expected return type
+    return {
+      id: result.generation_id,
+      projectId: '',
+      status: 'completed',
+      triggerType: 'manual',
+      filesProcessed: result.files.length,
+      filesFailed: 0,
+      processingTimeSeconds: 0,
+      startedAt: new Date(),
+      completedAt: new Date(),
+      createdAt: new Date()
+    };
+  }
+  
+  // Original generateDocumentation method - DEPRECATED
+  private async generateDocumentationOld(repositoryId: string, userId: string, useMultiPass: boolean = false): Promise<DocumentationGeneration> {
+    logger.info('DocumentationService: generateDocumentationOld called', { repositoryId, userId });
     
     const startTime = Date.now();
     let generation: DocumentationGeneration | null = null;
@@ -533,6 +555,29 @@ export class DocumentationService {
     }
   }
 
+  async getRepositoryInfo(repositoryId: string, userId: string): Promise<any> {
+    logger.info('DocumentationService: getRepositoryInfo called', { repositoryId, userId });
+    
+    try {
+      const { data: repository, error } = await supabaseAdmin
+        .from('repository_access')
+        .select('*')
+        .eq('id', repositoryId)
+        .eq('user_id', userId)
+        .single();
+        
+      if (error || !repository) {
+        logger.error('Repository not found or access denied', { error });
+        return null;
+      }
+      
+      return repository;
+    } catch (error) {
+      logger.error('Failed to get repository info', { repositoryId, error });
+      throw error;
+    }
+  }
+
   async getAllDocumentation(userId: string): Promise<any[]> {
     logger.info('DocumentationService: getAllDocumentation called', { userId });
     
@@ -655,6 +700,49 @@ export class DocumentationService {
       }
       
       generation = newGeneration;
+      
+      // Create an empty documentation record immediately so frontend knows documentation exists
+      logger.info('Creating empty documentation record for immediate availability');
+      const { error: initialDocError } = await supabaseAdmin
+        .from('documentation')
+        .upsert({
+          repository_id: repositoryId,
+          user_id: userId,
+          content: `# ${repository.repo_full_name}\n\n*Documentation is being generated. Please check the Files tab to see individual file documentation as it becomes available.*`,
+          generation_id: generation.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'repository_id,user_id'
+        });
+        
+      if (initialDocError) {
+        logger.error('Failed to create initial documentation record', { error: initialDocError });
+        // Don't throw - continue with generation
+      }
+
+      // Create an empty summary immediately so frontend can show the repository
+      logger.info('Creating empty documentation summary for immediate availability');
+      const { error: initialSummaryError } = await supabaseAdmin
+        .from('documentation_summaries')
+        .upsert({
+          repository_id: repositoryId,
+          generation_id: generation.id,
+          content: `# ${repository.repo_full_name}\n\n*Documentation is being generated. Please refresh in a few moments to see the content.*`,
+          metadata: {
+            total_files: 0,
+            languages: {},
+            total_lines: 0,
+            documentation_coverage: 0
+          }
+        }, {
+          onConflict: 'repository_id,generation_id'
+        });
+        
+      if (initialSummaryError) {
+        logger.error('Failed to create initial documentation summary', { error: initialSummaryError });
+        // Don't throw - continue with generation
+      }
 
       // Extract owner and name from repo_full_name
       const [owner, name] = repository.repo_full_name.split('/');
@@ -723,12 +811,94 @@ export class DocumentationService {
         }
       }));
 
-      // Generate documentation for each file in batches
+      // Generate documentation for each file in batches with immediate saving
       logger.info('Generating documentation for individual files', { 
         fileCount: fileContexts.length,
         firstFile: fileContexts[0]?.filePath 
       });
-      const fileDocumentations = await this.fileDocumentation.generateBatchFileDocumentation(fileContexts);
+      
+      const fileDocumentations: FileDocumentationResult[] = [];
+      let processedFiles = 0;
+      let totalLinesProcessed = 0;
+      const languageCount: { [key: string]: number } = {};
+      
+      // Callback to save each file immediately as it's generated
+      const onFileCompleted = async (result: FileDocumentationResult, index: number, total: number) => {
+        const fileInsert = {
+          repository_id: repositoryId,
+          generation_id: generation.id,
+          file_path: result.file_path,
+          file_type: result.metadata.file_type,
+          language: result.metadata.language,
+          lines_of_code: result.metadata.lines_of_code,
+          generated_documentation: result.documentation,
+          metadata: result.metadata
+        };
+        
+        // Save the file immediately
+        const { error: fileInsertError } = await supabaseAdmin
+          .from('documentation_files')
+          .insert(fileInsert);
+          
+        if (fileInsertError) {
+          logger.error('Failed to insert file documentation immediately', { 
+            error: fileInsertError,
+            filePath: result.file_path 
+          });
+          // Don't throw - continue with other files
+        } else {
+          logger.info('File documentation saved immediately', {
+            filePath: result.file_path,
+            progress: `${index + 1}/${total}`
+          });
+          
+          // Update tracking variables
+          processedFiles++;
+          totalLinesProcessed += result.metadata.lines_of_code || 0;
+          if (result.metadata.language) {
+            languageCount[result.metadata.language] = (languageCount[result.metadata.language] || 0) + 1;
+          }
+          
+          // Update summary metadata incrementally
+          const updatedMetadata = {
+            total_files: allFiles.length,
+            languages: languageCount,
+            total_lines: totalLinesProcessed,
+            documentation_coverage: (processedFiles / allFiles.length) * 100
+          };
+          
+          await supabaseAdmin
+            .from('documentation_summaries')
+            .update({
+              metadata: updatedMetadata,
+              updated_at: new Date().toISOString()
+            })
+            .eq('repository_id', repositoryId)
+            .eq('generation_id', generation.id);
+        }
+        
+        // Update generation progress
+        await supabaseAdmin
+          .from('documentation_generations')
+          .update({
+            files_processed: index + 1,
+            output_data: {
+              current_file: index + 1,
+              total_files: total,
+              last_processed_file: result.file_path
+            }
+          })
+          .eq('id', generation.id);
+      };
+      
+      // Generate with callback
+      const generatedDocs = await this.fileDocumentation.generateBatchFileDocumentation(
+        fileContexts,
+        onFileCompleted
+      );
+      
+      fileDocumentations.push(...generatedDocs);
+      
       logger.info('File documentation generation completed', { 
         documentsGenerated: fileDocumentations.length 
       });
@@ -740,14 +910,14 @@ export class DocumentationService {
       }
       
       // Generate repository summary
-      logger.info('Generating repository summary');
+      logger.info('Generating final repository summary');
       const summary = await this.fileDocumentation.generateRepositorySummary(
         repository.repo_full_name,
         allFiles,
         fileDocumentations
       );
 
-      // Calculate metadata
+      // Calculate final metadata
       const metadata = {
         total_files: allFiles.length,
         languages: this.calculateLanguageDistribution(allFiles),
@@ -755,66 +925,50 @@ export class DocumentationService {
         documentation_coverage: (fileDocumentations.length / allFiles.length) * 100
       };
 
-      // Store documentation summary (use upsert to handle duplicates)
+      // Update the placeholder summary with final content
+      logger.info('Updating documentation summary with final content');
       const { error: summaryError } = await supabaseAdmin
         .from('documentation_summaries')
         .upsert({
           repository_id: repositoryId,
           generation_id: generation.id,
           content: summary,
-          metadata
+          metadata,
+          updated_at: new Date().toISOString()
         }, {
           onConflict: 'repository_id,generation_id'
         });
         
       if (summaryError) {
-        logger.error('Failed to insert documentation summary', { error: summaryError });
-        throw new Error('Failed to store documentation summary');
+        logger.error('Failed to update documentation summary', { error: summaryError });
+        throw new Error('Failed to update documentation summary');
       }
-
-      // Store individual file documentation
-      const fileInserts = fileDocumentations.map(doc => ({
-        repository_id: repositoryId,
-        generation_id: generation.id,
-        file_path: doc.file_path,
-        file_type: doc.metadata.file_type,
-        language: doc.metadata.language,
-        lines_of_code: doc.metadata.lines_of_code,
-        generated_documentation: doc.documentation,
-        metadata: doc.metadata
-      }));
       
-      logger.info('Preparing to insert file documentation', {
-        fileCount: fileInserts.length,
-        generationId: generation.id,
+      logger.info('Documentation summary updated successfully', {
         repositoryId,
-        filePaths: fileInserts.map(f => f.file_path)
+        generationId: generation.id
       });
-
-      // Delete existing files for this generation first to avoid duplicates
-      const { error: deleteError } = await supabaseAdmin
-        .from('documentation_files')
-        .delete()
-        .eq('repository_id', repositoryId)
-        .eq('generation_id', generation.id);
+      
+      // Update the documentation record with final summary content
+      logger.info('Updating documentation record with final content');
+      const { error: docUpdateError } = await supabaseAdmin
+        .from('documentation')
+        .upsert({
+          repository_id: repositoryId,
+          user_id: userId,
+          content: summary,
+          generation_id: generation.id,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'repository_id,user_id'
+        });
         
-      if (deleteError) {
-        logger.error('Failed to delete existing file documentation', { error: deleteError });
+      if (docUpdateError) {
+        logger.error('Failed to update documentation record', { error: docUpdateError });
+        // Don't throw - the files are already saved
       }
       
-      // Now insert the new files
-      const { error: fileInsertError } = await supabaseAdmin
-        .from('documentation_files')
-        .insert(fileInserts);
-        
-      if (fileInsertError) {
-        logger.error('Failed to insert file documentation', { error: fileInsertError });
-        throw new Error('Failed to store file documentation');
-      }
-      
-      logger.info('File documentation insertion completed', {
-        filesInserted: fileInserts.length
-      });
+      // Note: Individual files have already been saved during generation via the callback
 
       // Update generation record
       const processingTime = (Date.now() - startTime) / 1000;
@@ -888,12 +1042,11 @@ export class DocumentationService {
       throw new Error('Repository not found or access denied');
     }
     
-    // Get the latest generation
+    // Get the latest generation (regardless of status so we can see files as they're being generated)
     const { data: latestGeneration } = await supabaseAdmin
       .from('documentation_generations')
       .select('id')
       .eq('repository_id', repositoryId)
-      .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -990,12 +1143,11 @@ export class DocumentationService {
       throw new Error('Repository not found or access denied');
     }
     
-    // Get the latest generation
+    // Get the latest generation (regardless of status so we can see files as they're being generated)
     const { data: latestGeneration } = await supabaseAdmin
       .from('documentation_generations')
       .select('id')
       .eq('repository_id', repositoryId)
-      .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(1)
       .single();

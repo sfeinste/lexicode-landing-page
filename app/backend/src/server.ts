@@ -8,6 +8,7 @@ import { errorHandler } from '@/middleware/error-handler';
 import { requestLogger } from '@/middleware/request-logger';
 import { rawBodyMiddleware, webhookHeadersMiddleware } from '@/middleware/webhook-middleware';
 import { setupRoutes } from '@/routes';
+import { queueService } from './services/queueService';
 
 const app = express();
 
@@ -55,10 +56,32 @@ app.use(errorHandler);
 
 const PORT = config.port || 3001;
 
+// Initialize queue service
+queueService.connect()
+  .then(() => {
+    logger.info('✅ Queue service connected');
+  })
+  .catch(err => {
+    logger.error('❌ Failed to connect to queue service:', err);
+  });
+
 app.listen(PORT, () => {
   logger.info(`🚀 Lexicode Backend Server running on port ${PORT}`);
   logger.info(`📝 Environment: ${config.nodeEnv}`);
   logger.info(`🔍 Health check: http://localhost:${PORT}/health`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully...');
+  await queueService.disconnect();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully...');
+  await queueService.disconnect();
+  process.exit(0);
 });
 
 export default app;

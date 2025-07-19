@@ -82,3 +82,19 @@ export interface FileTreeNode {
   language?: string;
   hasDocumentation?: boolean;
 }
+
+// Async job types
+export interface GenerateDocumentationJobResponse {
+  message: string;
+  jobId: string;
+  status: 'pending';
+}
+
+export interface JobProgress {
+  jobId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  currentFile?: number;
+  totalFiles?: number;
+  error?: string;
+  completedAt?: Date;
+}

@@ -70,7 +70,10 @@ export class FileDocumentationService {
   /**
    * Generate documentation for multiple files in batch
    */
-  async generateBatchFileDocumentation(files: FileContext[]): Promise<FileDocumentationResult[]> {
+  async generateBatchFileDocumentation(
+    files: FileContext[],
+    onFileCompleted?: (result: FileDocumentationResult, index: number, total: number) => Promise<void>
+  ): Promise<FileDocumentationResult[]> {
     const batchSize = 2; // Process 2 files at a time to avoid rate limits
     const results: FileDocumentationResult[] = [];
     
@@ -79,8 +82,8 @@ export class FileDocumentationService {
       batchSize 
     });
     
-    // Limit to first 10 files for testing
-    const filesToProcess = files.slice(0, 10);
+    // Process all files
+    const filesToProcess = files;
     
     for (let i = 0; i < filesToProcess.length; i += batchSize) {
       const batch = filesToProcess.slice(i, i + batchSize);
@@ -95,6 +98,22 @@ export class FileDocumentationService {
       
       try {
         const batchResults = await Promise.all(batchPromises);
+        
+        // Save each file immediately if callback is provided
+        if (onFileCompleted) {
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            if (result) {
+              const globalIndex = i + j;
+              await onFileCompleted(result, globalIndex, filesToProcess.length);
+              logger.info(`File saved immediately: ${result.file_path}`, {
+                index: globalIndex,
+                total: filesToProcess.length
+              });
+            }
+          }
+        }
+        
         results.push(...batchResults);
         logger.info(`Batch ${Math.floor(i / batchSize) + 1} completed successfully`, { 
           resultsCount: batchResults.length 

@@ -1,11 +1,12 @@
-import { api, apiLongRunning } from './api';
+import { api } from './api';
 import { 
   Documentation, 
   DocumentationItem,
   FileDocumentationResponse,
   DocumentationFileDetail,
   DocumentationSummary,
-  GenerateFileDocumentationResponse
+  GenerateDocumentationJobResponse,
+  JobProgress
 } from '@/types/documentation';
 
 export const documentationApi = {
@@ -20,17 +21,56 @@ export const documentationApi = {
     return response.data;
   },
 
-  async generate(repositoryId: string): Promise<any> {
-    const response = await apiLongRunning.post(`/api/v1/documentation/generate/${repositoryId}`);
+  async generate(repositoryId: string): Promise<GenerateDocumentationJobResponse> {
+    const response = await api.post<GenerateDocumentationJobResponse>(
+      `/api/v1/documentation/generate/${repositoryId}`
+    );
     return response.data;
   },
 
   // New file-based documentation endpoints
-  async generateFiles(repositoryId: string): Promise<GenerateFileDocumentationResponse> {
-    const response = await apiLongRunning.post<GenerateFileDocumentationResponse>(
+  async generateFiles(repositoryId: string): Promise<GenerateDocumentationJobResponse> {
+    const response = await api.post<GenerateDocumentationJobResponse>(
       `/api/v1/documentation/generate-files/${repositoryId}`
     );
     return response.data;
+  },
+
+  // Progress tracking endpoint
+  async getJobProgress(jobId: string): Promise<JobProgress> {
+    const response = await api.get<JobProgress>(`/api/v1/documentation/progress/${jobId}`);
+    return response.data;
+  },
+
+  // Helper function to poll for job completion
+  async pollJobProgress(
+    jobId: string, 
+    onProgress?: (progress: JobProgress) => void,
+    pollInterval: number = 2000
+  ): Promise<JobProgress> {
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          const progress = await this.getJobProgress(jobId);
+          
+          if (onProgress) {
+            onProgress(progress);
+          }
+
+          if (progress.status === 'completed') {
+            resolve(progress);
+          } else if (progress.status === 'failed') {
+            reject(new Error(progress.error || 'Job failed'));
+          } else {
+            setTimeout(poll, pollInterval);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      poll();
+    });
   },
 
   async getFiles(repositoryId: string): Promise<FileDocumentationResponse> {

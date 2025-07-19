@@ -11,6 +11,7 @@ router.use(authMiddleware);
 // Documentation generation routes
 router.get('/', documentationController.getAllDocumentation.bind(documentationController));
 router.post('/generate/:repositoryId', documentationController.generateDocumentation.bind(documentationController));
+router.get('/progress/:jobId', documentationController.getJobProgress.bind(documentationController));
 router.get('/:repositoryId', documentationController.getDocumentation.bind(documentationController));
 
 // File-based documentation routes

@@ -47,14 +47,14 @@ export class MultiPassGenerationService {
       totalCost += pass1Result.cost;
       
       // Pass 2: Detailed API documentation and component guides
-      const pass2Result = await this.generateSecondPass(context, options, pass1Result.sections);
-      sections.push(...pass2Result.sections);
-      totalCost += pass2Result.cost;
+      // const pass2Result = await this.generateSecondPass(context, options, pass1Result.sections);
+      // sections.push(...pass2Result.sections);
+      // totalCost += pass2Result.cost;
       
-      // Pass 3: Usage examples and integration guides
-      const pass3Result = await this.generateThirdPass(context, options, sections);
-      sections.push(...pass3Result.sections);
-      totalCost += pass3Result.cost;
+      // // Pass 3: Usage examples and integration guides
+      // const pass3Result = await this.generateThirdPass(context, options, sections);
+      // sections.push(...pass3Result.sections);
+      // totalCost += pass3Result.cost;
       
       // Merge all sections into final documentation
       const mergedContent = this.mergeSections(sections, context);

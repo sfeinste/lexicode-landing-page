@@ -1,3 +1,85 @@
+# Async Queue Implementation Todo List
+
+## Completed Tasks
+
+### Backend Infrastructure
+- [x] Analyze current backend structure and documentation flow
+- [x] Create docker-compose.yml with RabbitMQ service
+- [x] Install RabbitMQ client dependencies (amqplib)
+- [x] Create queue service for managing RabbitMQ connections
+- [x] Refactor repository documentation endpoint to use queue
+- [x] Create background worker for processing documentation jobs
+- [x] Add progress tracking mechanism using Redis
+- [x] Create progress endpoint for frontend to poll
+- [x] Create worker startup script
+- [x] Update package.json with worker scripts
+
+## Pending Tasks
+
+### Frontend Updates
+- [ ] Update frontend to handle async responses and show progress
+  - [ ] Modify API calls to handle 202 response with jobId
+  - [ ] Implement polling mechanism for progress updates
+  - [ ] Create progress UI component
+  - [ ] Handle completion and error states
+
+### Testing
+- [ ] Test the complete async flow
+  - [ ] Start docker-compose services
+  - [ ] Run backend server and worker
+  - [ ] Test documentation generation
+  - [ ] Verify progress updates
+
+## Review
+
+### Summary of Changes
+
+The backend has been successfully refactored from a synchronous to an asynchronous architecture using RabbitMQ for job queuing and Redis for progress tracking.
+
+### Key Components Added:
+
+1. **Docker Compose Setup**
+   - Added RabbitMQ service for message queuing
+   - Added Redis service for progress tracking
+   - Both services configured with health checks
+
+2. **Queue Service (`queueService.ts`)**
+   - Manages RabbitMQ connections
+   - Publishes documentation jobs to queue
+   - Handles job consumption
+   - Publishes progress updates
+
+3. **Documentation Worker (`documentationWorker.ts`)**
+   - Processes documentation jobs from queue
+   - Tracks progress in Redis
+   - Handles both regular and file-based documentation
+   - Graceful shutdown support
+
+4. **API Changes**
+   - Documentation generation endpoints now return 202 Accepted with jobId
+   - Added `/api/v1/documentation/progress/:jobId` endpoint
+   - Queue integration in documentation controller
+
+5. **Infrastructure Updates**
+   - Server initializes queue service on startup
+   - Added npm scripts for running worker
+   - Added concurrently for parallel development
+
+### Architecture Benefits:
+- Frontend no longer blocks during documentation generation
+- Better scalability - can run multiple workers
+- Progress visibility for users
+- Resilient to failures with message persistence
+- Separation of concerns between API and processing
+
+### Next Steps:
+1. Frontend needs to be updated to handle async flow
+2. Testing of the complete system
+3. Consider adding more detailed progress tracking (per-file progress)
+4. Add monitoring and error recovery mechanisms
+
+---
+
 # Multi-Page Documentation Implementation Plan
 
 ## Overview

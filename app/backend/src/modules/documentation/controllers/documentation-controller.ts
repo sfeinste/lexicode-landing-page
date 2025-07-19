@@ -1,12 +1,24 @@
 import { Request, Response } from 'express';
 import { DocumentationService } from '../services/documentation-service';
 import { logger } from '@/shared/logger';
+import { queueService, DocumentationJob } from '../../../services/queueService';
+import { v4 as uuidv4 } from 'uuid';
+import { createClient } from 'redis';
 
 export class DocumentationController {
   private documentationService: DocumentationService;
+  private redisClient: ReturnType<typeof createClient>;
 
   constructor() {
     this.documentationService = new DocumentationService();
+    
+    // Initialize Redis client for progress tracking
+    this.redisClient = createClient({
+      url: process.env.REDIS_URL || 'redis://localhost:6379'
+    });
+    
+    this.redisClient.on('error', (err) => logger.error('Redis Client Error in Controller', err));
+    this.redisClient.connect().catch(err => logger.error('Failed to connect to Redis in Controller', err));
   }
 
   async generateDocumentation(req: Request, res: Response): Promise<void> {
@@ -21,15 +33,29 @@ export class DocumentationController {
         return;
       }
       
-      // Start documentation generation
-      const generation = await this.documentationService.generateDocumentation(
-        repositoryId,
-        userId
-      );
+      // Get repository info to include in job
+      const repositoryInfo = await this.documentationService.getRepositoryInfo(repositoryId, userId);
+      if (!repositoryInfo) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
       
-      res.status(200).json({
-        message: 'Documentation generation started',
-        generation
+      // Create job and enqueue it - always use file-based generation
+      const jobId = uuidv4();
+      const job: DocumentationJob = {
+        jobId,
+        userId,
+        repositoryId,
+        repositoryName: repositoryInfo.name,
+        generateFiles: true  // Always generate file-based documentation
+      };
+      
+      await queueService.publishDocumentationJob(job);
+      
+      res.status(202).json({
+        message: 'Documentation generation queued',
+        jobId,
+        status: 'pending'
       });
     } catch (error) {
       logger.error('Generate documentation error:', error);
@@ -217,20 +243,29 @@ export class DocumentationController {
         return;
       }
       
-      // Start file-based documentation generation
-      const result = await this.documentationService.generateFileBasedDocumentation(
-        repositoryId,
-        userId
-      );
+      // Get repository info to include in job
+      const repositoryInfo = await this.documentationService.getRepositoryInfo(repositoryId, userId);
+      if (!repositoryInfo) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
       
-      res.status(200).json({
-        message: 'File-based documentation generation completed',
-        result: {
-          repository_id: result.repository_id,
-          generation_id: result.generation_id,
-          files_documented: result.files.length,
-          metadata: result.metadata
-        }
+      // Create job and enqueue it
+      const jobId = uuidv4();
+      const job: DocumentationJob = {
+        jobId,
+        userId,
+        repositoryId,
+        repositoryName: repositoryInfo.name,
+        generateFiles: true
+      };
+      
+      await queueService.publishDocumentationJob(job);
+      
+      res.status(202).json({
+        message: 'File-based documentation generation queued',
+        jobId,
+        status: 'pending'
       });
     } catch (error) {
       logger.error('Generate file-based documentation error:', error);
@@ -360,6 +395,40 @@ export class DocumentationController {
       });
     } catch (error) {
       logger.error('Get documentation summary error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  /**
+   * Get job progress
+   */
+  async getJobProgress(req: Request, res: Response): Promise<void> {
+    try {
+      const { jobId } = req.params;
+      const userId = (req as any).user.id;
+      
+      logger.info('Get job progress request', { jobId, userId });
+      
+      if (!jobId) {
+        res.status(400).json({ error: 'Job ID is required' });
+        return;
+      }
+      
+      // Get progress from Redis
+      const progressData = await this.redisClient.get(`progress:${jobId}`);
+      
+      if (!progressData) {
+        res.status(404).json({ error: 'Job not found' });
+        return;
+      }
+      
+      const progress = JSON.parse(progressData);
+      
+      res.status(200).json(progress);
+    } catch (error) {
+      logger.error('Get job progress error:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Internal server error' 
       });

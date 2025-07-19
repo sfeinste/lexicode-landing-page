@@ -5,8 +5,11 @@ import {
   Lock, Globe, Code2, Package, AlertCircle, FileText,
   Clock, ExternalLink, MoreVertical, RefreshCw, Loader2 
 } from 'lucide-react';
-import { api, apiLongRunning } from '@/services/api';
+import { api } from '@/services/api';
 import { RepositoryManager } from '@/components/RepositoryManager';
+import { documentationApi } from '@/services/documentation';
+import { DocumentationProgressModal } from '@/components/documentation/DocumentationProgressModal';
+import { JobProgress } from '@/types/documentation';
 
 interface Repository {
   id: string;
@@ -162,29 +165,49 @@ export const RepositoriesPage = () => {
     return date.toLocaleDateString();
   };
 
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [jobProgress, setJobProgress] = useState<JobProgress | null>(null);
+  const [currentRepo, setCurrentRepo] = useState<Repository | null>(null);
+
   const handleGenerateDocs = async (repoId: string) => {
     try {
       setLoadingStates(prev => ({ ...prev, [repoId]: true }));
       setErrorStates(prev => ({ ...prev, [repoId]: null }));
       
-      const response = await apiLongRunning.post(`/api/v1/documentation/generate-files/${repoId}`);
+      // Find the repository for the name
+      const repo = repositories.find(r => r.id === repoId);
+      if (repo) {
+        setCurrentRepo(repo);
+      }
       
-      const result = response.data;
+      // Start generation and show progress modal
+      const jobResponse = await documentationApi.generateFiles(repoId);
+      setShowProgressModal(true);
       
-      // Show success message
-      alert(`Documentation generation started! Generation ID: ${result.generation?.id}`);
+      // Poll for progress
+      await documentationApi.pollJobProgress(
+        jobResponse.jobId,
+        (progress) => {
+          setJobProgress(progress);
+        }
+      );
       
-      // Navigate to documentation page after a short delay
+      // Navigate to documentation page after completion
       setTimeout(() => {
         navigate(`/documentation/${repoId}`);
       }, 2000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate documentation:', error);
       setErrorStates(prev => ({ 
         ...prev, 
-        [repoId]: error instanceof Error ? error.message : 'Failed to generate documentation' 
+        [repoId]: error.message || 'Failed to generate documentation' 
       }));
+      setJobProgress({
+        jobId: '',
+        status: 'failed',
+        error: error.message || 'Failed to generate documentation'
+      });
     } finally {
       setLoadingStates(prev => ({ ...prev, [repoId]: false }));
     }
@@ -465,6 +488,17 @@ export const RepositoriesPage = () => {
       {showRepositoryManager && (
         <RepositoryManager onClose={handleRepositoryManagerClose} />
       )}
+
+      {/* Progress Modal */}
+      <DocumentationProgressModal
+        isOpen={showProgressModal}
+        onClose={() => {
+          setShowProgressModal(false);
+          setJobProgress(null);
+        }}
+        progress={jobProgress}
+        repositoryName={currentRepo?.repo_full_name || 'Repository'}
+      />
     </div>
   );
 };
