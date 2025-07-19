@@ -149,18 +149,49 @@ export class GitHubAppService {
     try {
       const { token } = await this.generateInstallationToken(installationId);
       
-      const response = await axios.get(
-        'https://api.github.com/installation/repositories',
-        {
-          headers: {
-            Authorization: `token ${token}`,
-            Accept: 'application/vnd.github.v3+json',
-            'User-Agent': 'Lexicode-App/1.0',
-          },
-        }
-      );
+      let allRepositories: GitHubRepository[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await axios.get(
+          'https://api.github.com/installation/repositories',
+          {
+            headers: {
+              Authorization: `token ${token}`,
+              Accept: 'application/vnd.github.v3+json',
+              'User-Agent': 'Lexicode-App/1.0',
+            },
+            params: {
+              per_page: 100,
+              page: page,
+            },
+          }
+        );
 
-      return response.data.repositories || [];
+        const repositories = response.data.repositories || [];
+        allRepositories = [...allRepositories, ...repositories];
+        
+        // Check if there are more pages
+        hasMore = repositories.length === 100;
+        page++;
+        
+        // Log progress for large installations
+        if (page > 1) {
+          logger.info('Fetching additional repository pages', { 
+            installationId, 
+            page, 
+            totalSoFar: allRepositories.length 
+          });
+        }
+      }
+      
+      logger.info('Fetched all installation repositories', { 
+        installationId, 
+        totalCount: allRepositories.length 
+      });
+
+      return allRepositories;
     } catch (error) {
       logger.error('Failed to get installation repositories', { installationId, error });
       throw new Error(`Failed to get installation repositories: ${error}`);
