@@ -90,6 +90,12 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
       setIsLoadingDoc(true);
       setSelectedFile(filePath);
       const doc = await documentationApi.getFileByPath(repositoryId, filePath);
+      console.log('Loaded file documentation:', {
+        filePath,
+        docType: typeof doc.documentation,
+        docLength: doc.documentation?.length,
+        docPreview: doc.documentation?.substring(0, 200)
+      });
       setCurrentDoc(doc);
     } catch (err) {
       setError('Failed to load file documentation');
@@ -351,8 +357,38 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
           {isLoadingDoc ? (
             <DocumentationSkeleton />
           ) : currentDoc ? (
-            <div className="prose prose-blue max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <div className="prose prose-blue max-w-none prose-headings:font-bold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-pre:bg-gray-100 prose-pre:overflow-x-auto">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  pre: ({ node, ...props }) => (
+                    <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto" {...props} />
+                  ),
+                  code: ({ node, inline, ...props }) => (
+                    inline 
+                      ? <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />
+                      : <code {...props} />
+                  ),
+                  h1: ({ node, ...props }) => (
+                    <h1 className="text-3xl font-bold mb-4 mt-6" {...props} />
+                  ),
+                  h2: ({ node, ...props }) => (
+                    <h2 className="text-2xl font-bold mb-3 mt-5" {...props} />
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3 className="text-xl font-bold mb-2 mt-4" {...props} />
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p className="mb-4 leading-relaxed" {...props} />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul className="list-disc list-inside mb-4 space-y-1" {...props} />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol className="list-decimal list-inside mb-4 space-y-1" {...props} />
+                  ),
+                }}
+              >
                 {'documentation' in currentDoc ? currentDoc.documentation : currentDoc.content}
               </ReactMarkdown>
             </div>
