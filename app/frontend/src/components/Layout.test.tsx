@@ -38,7 +38,8 @@ describe('Layout', () => {
   it('renders navigation items', () => {
     renderLayout();
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    // Use getAllByText since Dashboard appears in both nav and header
+    expect(screen.getAllByText('Dashboard')[0]).toBeInTheDocument();
     expect(screen.getByText('Repositories')).toBeInTheDocument();
     expect(screen.getByText('Documentation')).toBeInTheDocument();
     expect(screen.getByText('Billing')).toBeInTheDocument();
@@ -56,10 +57,12 @@ describe('Layout', () => {
   it('highlights active navigation item', () => {
     renderLayout('/repositories');
 
-    const repoLink = screen.getByText('Repositories').closest('a');
+    // Get the navigation link specifically, not the header text
+    const navElement = screen.getByRole('navigation');
+    const repoLink = navElement.querySelector('a[href="/repositories"]');
     expect(repoLink).toHaveClass('bg-blue-50', 'text-blue-700');
 
-    const dashboardLink = screen.getByText('Dashboard').closest('a');
+    const dashboardLink = navElement.querySelector('a[href="/dashboard"]');
     expect(dashboardLink).not.toHaveClass('bg-blue-50');
   });
 

@@ -158,6 +158,16 @@ describe('MultiPageDocumentationView', () => {
       />
     );
 
+    // Wait for the component to load
+    await waitFor(() => {
+      expect(screen.getByText('Repository Overview')).toBeInTheDocument();
+    });
+
+    // Click to expand the src folder first
+    const srcFolder = screen.getByText('src');
+    fireEvent.click(srcFolder);
+
+    // Now we should see index.ts
     await waitFor(() => {
       expect(screen.getByText('index.ts')).toBeInTheDocument();
     });
@@ -173,7 +183,14 @@ describe('MultiPageDocumentationView', () => {
   });
 
   it('toggles sidebar visibility', async () => {
-    render(
+    // Set window width to ensure sidebar starts open
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+
+    const { container } = render(
       <MultiPageDocumentationView
         repositoryId="test-repo-id"
         repositoryName="test-repo"
@@ -185,11 +202,25 @@ describe('MultiPageDocumentationView', () => {
       expect(screen.getByText('Repository Overview')).toBeInTheDocument();
     });
 
-    const toggleButton = screen.getAllByRole('button')[0];
-    fireEvent.click(toggleButton);
+    // The toggle button should be the first button with a Menu or X icon
+    // Find it by looking for the button in the header area
+    const header = container.querySelector('.bg-white.border-b');
+    const toggleButton = header?.querySelector('button');
+    
+    expect(toggleButton).toBeTruthy();
+    
+    // Find the sidebar container by looking for the element with transition-all class
+    let sidebar = document.querySelector('.transition-all');
+    expect(sidebar?.className).toMatch(/w-64/);
 
-    const sidebar = screen.getByText('Repository Overview').closest('div[class*="w-0"]');
-    expect(sidebar).toBeTruthy();
+    // Click to close
+    fireEvent.click(toggleButton!);
+
+    // Re-query the sidebar as React might have re-rendered
+    await waitFor(() => {
+      sidebar = document.querySelector('.transition-all');
+      expect(sidebar?.className).toMatch(/w-0/);
+    });
   });
 
   it('handles search functionality', async () => {
@@ -205,12 +236,26 @@ describe('MultiPageDocumentationView', () => {
       expect(screen.getByPlaceholderText('Search files...')).toBeInTheDocument();
     });
 
+    // First check that we can see src and README.md
+    expect(screen.getByText('src')).toBeInTheDocument();
+    expect(screen.getByText('README.md')).toBeInTheDocument();
+
+    // Now test search - search for "README"
     const searchInput = screen.getByPlaceholderText('Search files...');
-    fireEvent.change(searchInput, { target: { value: 'Button' } });
+    fireEvent.change(searchInput, { target: { value: 'README' } });
+
+    // After search, we should see README.md but not src folder
+    await waitFor(() => {
+      expect(screen.getByText('README.md')).toBeInTheDocument();
+      expect(screen.queryByText('src')).not.toBeInTheDocument();
+    });
+
+    // Clear search to verify everything comes back
+    fireEvent.change(searchInput, { target: { value: '' } });
 
     await waitFor(() => {
-      expect(screen.queryByText('index.ts')).not.toBeInTheDocument();
-      expect(screen.getByText('Button.tsx')).toBeInTheDocument();
+      expect(screen.getByText('src')).toBeInTheDocument();
+      expect(screen.getByText('README.md')).toBeInTheDocument();
     });
   });
 
@@ -295,6 +340,14 @@ describe('MultiPageDocumentationView', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('Repository Overview')).toBeInTheDocument();
+    });
+
+    // Expand src folder
+    const srcFolder = screen.getByText('src');
+    fireEvent.click(srcFolder);
+
+    await waitFor(() => {
       expect(screen.getByText('index.ts')).toBeInTheDocument();
     });
 
@@ -315,6 +368,14 @@ describe('MultiPageDocumentationView', () => {
         onRegenerate={mockOnRegenerate}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByText('Repository Overview')).toBeInTheDocument();
+    });
+
+    // Expand src folder
+    const srcFolder = screen.getByText('src');
+    fireEvent.click(srcFolder);
 
     await waitFor(() => {
       expect(screen.getByText('index.ts')).toBeInTheDocument();
