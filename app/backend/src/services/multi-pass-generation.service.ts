@@ -1,6 +1,8 @@
 import { logger } from '@/shared/logger';
-import { AnthropicService } from './anthropic.service';
+//import { AnthropicService } from './anthropic.service';
+import { OpenAIService } from './openai.service'; 
 import { CodeContext, PromptOptions } from './prompt-templates';
+import OpenAI from 'openai';
 
 export interface DocumentationSection {
   id: string;
@@ -19,10 +21,10 @@ export interface MultiPassResult {
 }
 
 export class MultiPassGenerationService {
-  private anthropicService: AnthropicService;
+  private anthropicService: OpenAIService;
   
   constructor() {
-    this.anthropicService = new AnthropicService();
+    this.anthropicService = new OpenAIService();
   }
   
   /**

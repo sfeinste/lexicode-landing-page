@@ -1,6 +1,7 @@
 import { logger } from '@/shared/logger';
 import { supabaseAdmin } from '@/lib/supabase';
-import { AnthropicService } from '@/services/anthropic.service';
+//import { AnthropicService } from '@/services/anthropic.service';
+import { OpenAIService } from '@/services/openai.service';
 import { GitHubFileReaderService } from '@/services/github-file-reader.service';
 import { CodeChunkingService } from '@/services/code-chunking.service';
 import { PromptTemplates, CodeContext } from '@/services/prompt-templates';
@@ -64,7 +65,7 @@ export interface DocumentationFile {
 }
 
 export class DocumentationService {
-  private anthropicService: AnthropicService;
+  private anthropicService: OpenAIService;
   private githubFileReader: GitHubFileReaderService;
   private codeChunking: CodeChunkingService;
   private multiPassGeneration: MultiPassGenerationService;
@@ -72,7 +73,7 @@ export class DocumentationService {
   private fileDocumentation: FileDocumentationService;
 
   constructor() {
-    this.anthropicService = new AnthropicService();
+    this.anthropicService = new OpenAIService();
     this.githubFileReader = new GitHubFileReaderService();
     this.codeChunking = new CodeChunkingService();
     this.multiPassGeneration = new MultiPassGenerationService();

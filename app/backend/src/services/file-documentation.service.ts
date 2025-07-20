@@ -1,5 +1,6 @@
 import { logger } from '@/shared/logger';
-import { AnthropicService } from './anthropic.service';
+//import { AnthropicService } from './anthropic.service';
+import { OpenAIService } from './openai.service';
 import { CodeContextExtractionService } from './code-context-extraction.service';
 import { FileDocumentationResult } from '@/modules/documentation/types';
 
@@ -16,11 +17,11 @@ export interface FileContext {
 }
 
 export class FileDocumentationService {
-  private anthropicService: AnthropicService;
+  private anthropicService: OpenAIService;
   private codeContextExtraction: CodeContextExtractionService;
 
   constructor() {
-    this.anthropicService = new AnthropicService();
+    this.anthropicService = new OpenAIService();
     this.codeContextExtraction = new CodeContextExtractionService();
   }
 
