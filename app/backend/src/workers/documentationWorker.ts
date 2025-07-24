@@ -131,7 +131,8 @@ class DocumentationWorker {
       // Call the service method
       const result = await this.documentationService.generateFileBasedDocumentation(
         job.repositoryId,
-        job.userId
+        job.userId,
+        job.jobId
       );
       
       // Clear the interval

@@ -37,9 +37,9 @@ export class AnthropicService {
   private requestQueue: Promise<any> = Promise.resolve();
   
   // Backoff configuration
-  private readonly maxRetries: number = 5;
+  private readonly maxRetries: number = 10;
   private readonly initialBackoffMs: number = 2000; // Start with 2 seconds
-  private readonly maxBackoffMs: number = 60000; // Max 60 seconds
+  private readonly maxBackoffMs: number = 600000; // Max 10 minutes
 
   constructor() {
     const apiKey = process.env.ANTHROPIC_API_KEY;

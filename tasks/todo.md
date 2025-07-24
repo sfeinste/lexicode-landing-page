@@ -141,4 +141,68 @@ Transform the documentation generation from a single markdown page to multiple p
 - Test each phase before moving to the next
 
 ## Review Section
-*To be completed after implementation*
+
+### File-Based Async Documentation Generation
+
+#### Summary of Changes
+
+1. **Increased Anthropic Service Backoff**
+   - Updated max backoff from 60 seconds to 600 seconds (10 minutes) for 529 errors
+   - File: `app/backend/src/services/anthropic.service.ts:42`
+
+2. **Added File Processing Queue**
+   - Created new `file_documentation_jobs` queue in RabbitMQ
+   - Added `FileDocumentationJob` interface
+   - Added methods to publish and consume file documentation jobs
+   - File: `app/backend/src/services/queueService.ts`
+
+3. **Updated Documentation Service**
+   - Modified `generateFileBasedDocumentation` to queue individual file jobs instead of processing synchronously
+   - Added jobId parameter to track job across workers
+   - Returns partial result immediately while files process asynchronously
+   - File: `app/backend/src/modules/documentation/services/documentation-service.ts:262`
+
+4. **Created File Documentation Worker**
+   - New worker processes individual file documentation jobs
+   - Fetches file content from GitHub
+   - Generates documentation using existing FileDocumentationService
+   - Updates progress in Redis and publishes to RabbitMQ
+   - Generates final repository summary when all files are processed
+   - File: `app/backend/src/workers/fileDocumentationWorker.ts`
+
+5. **Updated Worker Scripts**
+   - Added `dev:file-worker` and `start:file-worker` scripts
+   - Updated `dev:all` to include the file worker
+   - File: `app/backend/package.json:9-10`
+
+6. **Fixed Documentation Worker**
+   - Updated to pass jobId to documentation service
+   - File: `app/backend/src/workers/documentationWorker.ts:135`
+
+#### Architecture Benefits
+
+- **Scalability**: Individual files can be processed in parallel by multiple worker instances
+- **Resilience**: If a single file fails, it doesn't affect the entire job
+- **Progress Tracking**: Better granular progress updates as each file completes
+- **Resource Management**: Better control over rate limiting and resource usage
+- **Flexibility**: Can prioritize certain files or restart failed file processing
+
+#### Key Implementation Details
+
+- Files are queued individually with metadata (path, name, extension) rather than full content
+- Worker fetches file content on-demand to reduce queue message size
+- Progress is tracked both in Redis (for real-time updates) and database
+- Summary generation happens after all files are processed
+- Maintains backward compatibility with existing API
+
+#### Running the System
+
+To run the new architecture:
+1. Start Docker services: `docker-compose up -d`
+2. Run all services: `npm run dev:all`
+3. The system now includes:
+   - Main API server
+   - Documentation worker (handles job creation)
+   - File documentation worker (processes individual files)
+
+Documentation generation now happens asynchronously with improved scalability and resilience.

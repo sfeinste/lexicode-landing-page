@@ -26,6 +26,7 @@ export interface DocumentationGeneration {
   id: string;
   repository_id: string;
   user_id: string;
+  job_id?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   trigger_type: 'manual' | 'webhook' | 'scheduled';
   input_data?: any;

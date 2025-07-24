@@ -4,9 +4,10 @@ import { AnthropicService } from '@/services/anthropic.service';
 import { GitHubFileReaderService } from '@/services/github-file-reader.service';
 import { CodeChunkingService } from '@/services/code-chunking.service';
 import { PromptTemplates, CodeContext } from '@/services/prompt-templates';
-import { MultiPassGenerationService } from '@/services/multi-pass-generation.service';
 import { CodeContextExtractionService } from '@/services/code-context-extraction.service';
 import { FileDocumentationService, FileContext } from '@/services/file-documentation.service';
+import { queueService, FileDocumentationJob } from '@/services/queueService';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   DocumentationFile as DocFile, 
   DocumentationSummary, 
@@ -67,7 +68,6 @@ export class DocumentationService {
   private anthropicService: AnthropicService;
   private githubFileReader: GitHubFileReaderService;
   private codeChunking: CodeChunkingService;
-  private multiPassGeneration: MultiPassGenerationService;
   private codeContextExtraction: CodeContextExtractionService;
   private fileDocumentation: FileDocumentationService;
 
@@ -75,7 +75,6 @@ export class DocumentationService {
     this.anthropicService = new AnthropicService();
     this.githubFileReader = new GitHubFileReaderService();
     this.codeChunking = new CodeChunkingService();
-    this.multiPassGeneration = new MultiPassGenerationService();
     this.codeContextExtraction = new CodeContextExtractionService();
     this.fileDocumentation = new FileDocumentationService();
   }
@@ -121,7 +120,7 @@ export class DocumentationService {
     throw new Error('Not implemented');
   }
 
-  async generateDocumentation(repositoryId: string, userId: string, useMultiPass: boolean = false): Promise<DocumentationGeneration> {
+  async generateDocumentation(repositoryId: string, userId: string): Promise<DocumentationGeneration> {
     logger.info('DocumentationService: generateDocumentation called - redirecting to file-based generation', { repositoryId, userId });
     
     // Always use file-based generation now
@@ -140,396 +139,6 @@ export class DocumentationService {
       completedAt: new Date(),
       createdAt: new Date()
     };
-  }
-  
-  // Original generateDocumentation method - DEPRECATED
-  private async generateDocumentationOld(repositoryId: string, userId: string, useMultiPass: boolean = false): Promise<DocumentationGeneration> {
-    logger.info('DocumentationService: generateDocumentationOld called', { repositoryId, userId });
-    
-    const startTime = Date.now();
-    let generation: DocumentationGeneration | null = null;
-    
-    try {
-      // Get repository details
-      const { data: repository, error: repoError } = await supabaseAdmin
-        .from('repository_access')
-        .select('*')
-        .eq('id', repositoryId)
-        .eq('user_id', userId)
-        .single();
-        
-      if (repoError || !repository) {
-        throw new Error('Repository not found or access denied');
-      }
-
-      // Get GitHub installation
-      const { data: installation, error: installError } = await supabaseAdmin
-        .from('github_installations')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-        
-      if (installError || !installation) {
-        throw new Error('GitHub installation not found');
-      }
-
-      // Create documentation generation record
-      const { data: newGeneration, error: genError } = await supabaseAdmin
-        .from('documentation_generations')
-        .insert({
-          repository_id: repositoryId,
-          user_id: userId,
-          status: 'processing',
-          trigger_type: 'manual',
-          files_processed: 0,
-          files_failed: 0,
-          started_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-        
-      if (genError || !newGeneration) {
-        throw new Error('Failed to create generation record');
-      }
-      
-      generation = {
-        id: newGeneration.id,
-        projectId: '',
-        status: newGeneration.status,
-        triggerType: newGeneration.trigger_type,
-        filesProcessed: newGeneration.files_processed,
-        filesFailed: newGeneration.files_failed,
-        startedAt: newGeneration.started_at ? new Date(newGeneration.started_at) : undefined,
-        createdAt: new Date(newGeneration.created_at)
-      };
-
-      // Extract owner and name from repo_full_name (format: owner/name)
-      const [owner, name] = repository.repo_full_name.split('/');
-      const branch = repository.default_branch || 'main';
-      
-      // Fetch repository files
-      logger.info('Fetching repository files', { 
-        owner,
-        name,
-        branch,
-        repo_full_name: repository.repo_full_name
-      });
-      
-      const files = await this.githubFileReader.fetchRepositoryFiles(
-        installation.github_installation_id,
-        owner,
-        name,
-        branch
-      );
-
-      logger.info('Files fetched', { fileCount: files.length });
-
-      // Fetch README and dependencies
-      const readme = await this.githubFileReader.fetchReadme(
-        installation.github_installation_id,
-        owner,
-        name,
-        branch
-      );
-      
-      const packageJson = await this.githubFileReader.fetchPackageJson(
-        installation.github_installation_id,
-        owner,
-        name,
-        branch
-      );
-      
-      // Fetch configuration files
-      const configFiles = await this.githubFileReader.fetchConfigurationFiles(
-        installation.github_installation_id,
-        owner,
-        name,
-        branch
-      );
-      
-      // Analyze all dependencies
-      const dependencyAnalysis = await this.githubFileReader.analyzeDependencies(
-        installation.github_installation_id,
-        owner,
-        name,
-        branch
-      );
-      
-      // Add config files to the main files list for documentation
-      const allFiles = [...files, ...configFiles];
-      
-      // Extract enhanced context
-      logger.info('Extracting enhanced code context');
-      const enhancedContext = this.codeContextExtraction.extractEnhancedContext(allFiles);
-
-      // Create code context with enhanced information
-      const codeContext: CodeContext = {
-        repositoryName: repository.repo_full_name,
-        language: repository.language || 'unknown',
-        files: allFiles.map(f => {
-          const file: { path: string; content: string; language?: string } = {
-            path: f.path,
-            content: f.content
-          };
-          if (f.language) {
-            file.language = f.language;
-          }
-          return file;
-        }),
-        packageJson: packageJson,
-        enhancedContext: {
-          typeDefinitions: enhancedContext.typeDefinitions.map(t => ({
-            name: t.name,
-            type: t.type,
-            definition: t.definition,
-            file: t.file
-          })),
-          docComments: enhancedContext.docComments.map(d => ({
-            type: d.type,
-            content: d.content,
-            file: d.file
-          })),
-          designPatterns: enhancedContext.designPatterns.map(p => ({
-            name: p.name,
-            type: p.type,
-            description: p.description,
-            files: p.files
-          })),
-          environmentVariables: enhancedContext.environmentVariables.map(e => ({
-            name: e.name,
-            ...(e.description !== undefined && { description: e.description }),
-            ...(e.defaultValue !== undefined && { defaultValue: e.defaultValue }),
-            required: e.required
-          })),
-          testExamples: enhancedContext.testExamples.map(t => ({
-            name: t.name,
-            code: t.code,
-            file: t.file
-          }))
-        }
-      };
-      
-      if (packageJson) {
-        codeContext.dependencies = {
-          ...(packageJson.dependencies || {}),
-          ...(packageJson.devDependencies || {})
-        };
-      }
-      
-      if (readme) {
-        codeContext.readme = readme;
-      }
-      
-      // Detect entry points from all files (including config)
-      const entryPoints = allFiles
-        .filter(f => 
-          f.path.includes('index.') || 
-          f.path.includes('main.') || 
-          f.path.includes('app.') ||
-          f.path.includes('server.') ||
-          f.path === 'cli.js' ||
-          f.path === 'bin/cli'
-        )
-        .map(f => f.path);
-        
-      if (entryPoints.length > 0) {
-        codeContext.entryPoints = entryPoints;
-      }
-      
-      // Detect project type
-      const projectType = PromptTemplates.detectProjectType(codeContext);
-
-      // Check if we can process in a single request
-      let documentation = '';
-      let totalCost = 0;
-      
-      // Decide whether to use multi-pass generation
-      if (useMultiPass && this.codeChunking.canProcessInSingleRequest(allFiles)) {
-        // Use multi-pass generation for better quality
-        logger.info('Using multi-pass documentation generation');
-        
-        const multiPassResult = await this.multiPassGeneration.generateMultiPassDocumentation(
-          codeContext,
-          {
-            projectType: projectType as any,
-            includeExamples: true,
-            style: 'comprehensive'
-          }
-        );
-        
-        documentation = multiPassResult.mergedContent;
-        totalCost = multiPassResult.totalCost;
-        
-        // Store individual sections for future use
-        await supabaseAdmin
-          .from('documentation_sections')
-          .insert(
-            multiPassResult.sections.map(section => ({
-              repository_id: repositoryId,
-              user_id: userId,
-              generation_id: generation!.id,
-              section_id: section.id,
-              title: section.title,
-              content: section.content,
-              type: section.type,
-              pass: section.pass,
-              metadata: section.metadata
-            }))
-          );
-          
-      } else if (this.codeChunking.canProcessInSingleRequest(allFiles)) {
-        // Process all files in one request (standard single-pass)
-        logger.info('Processing all files in single request');
-        
-        const prompt = PromptTemplates.generateDocumentationPrompt(codeContext, {
-          projectType: projectType as any,
-          includeExamples: true,
-          style: 'comprehensive'
-        });
-        const response = await this.anthropicService.generateDocumentation(prompt);
-        
-        documentation = response.content;
-        totalCost = response.cost;
-      } else {
-        // Process in chunks using smart chunking
-        logger.info('Processing files in chunks using smart dependency analysis');
-        
-        const chunks = this.codeChunking.smartChunkFiles(allFiles);
-        const chunkResults: string[] = [];
-        
-        for (const chunk of chunks) {
-          logger.info(`Processing chunk ${chunk.id}`, { 
-            fileCount: chunk.files.length,
-            tokenEstimate: chunk.tokenEstimate 
-          });
-          
-          const chunkContext: CodeContext = {
-            ...codeContext,
-            files: chunk.files.map(f => {
-              const file: { path: string; content: string; language?: string } = {
-                path: f.path,
-                content: f.content
-              };
-              if (f.language) {
-                file.language = f.language;
-              }
-              return file;
-            })
-          };
-          
-          if (useMultiPass) {
-            // Use multi-pass for each chunk
-            const multiPassResult = await this.multiPassGeneration.generateMultiPassDocumentation(
-              chunkContext,
-              {
-                projectType: projectType as any,
-                includeExamples: true,
-                style: 'comprehensive'
-              }
-            );
-            
-            chunkResults.push(multiPassResult.mergedContent);
-            totalCost += multiPassResult.totalCost;
-          } else {
-            // Standard single-pass for each chunk
-            const prompt = PromptTemplates.generateDocumentationPrompt(chunkContext, {
-              projectType: projectType as any,
-              includeExamples: true,
-              style: 'comprehensive'
-            });
-            const response = await this.anthropicService.generateDocumentation(prompt);
-            
-            chunkResults.push(response.content);
-            totalCost += response.cost;
-          }
-        }
-        
-        // Combine chunk results
-        documentation = chunkResults.join('\n\n---\n\n');
-      }
-
-      // Store documentation
-      const { error: docError } = await supabaseAdmin
-        .from('documentation')
-        .upsert({
-          repository_id: repositoryId,
-          user_id: userId,
-          content: documentation,
-          generation_id: generation!.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'repository_id,user_id'
-        });
-        
-      if (docError) {
-        throw new Error('Failed to store documentation');
-      }
-
-      // Update generation record
-      const processingTime = (Date.now() - startTime) / 1000;
-      
-      const { error: updateError } = await supabaseAdmin
-        .from('documentation_generations')
-        .update({
-          status: 'completed',
-          files_processed: allFiles.length,
-          processing_time_seconds: processingTime,
-          completed_at: new Date().toISOString(),
-          output_data: {
-            total_files: allFiles.length,
-            config_files: configFiles.length,
-            total_cost: totalCost,
-            documentation_length: documentation.length
-          }
-        })
-        .eq('id', generation!.id);
-        
-      if (updateError) {
-        logger.error('Failed to update generation record', { error: updateError });
-      }
-
-      logger.info('Documentation generation completed', {
-        repositoryId,
-        generationId: generation!.id,
-        filesProcessed: files.length,
-        processingTime,
-        totalCost
-      });
-
-      return {
-        id: generation!.id,
-        projectId: generation!.projectId,
-        status: 'completed',
-        triggerType: generation!.triggerType,
-        filesProcessed: files.length,
-        filesFailed: generation!.filesFailed,
-        processingTimeSeconds: processingTime,
-        startedAt: generation!.startedAt,
-        completedAt: new Date(),
-        createdAt: generation!.createdAt
-      };
-      
-    } catch (error) {
-      logger.error('Documentation generation failed', { repositoryId, error });
-      
-      // Update generation record with error
-      if (generation) {
-        await supabaseAdmin
-          .from('documentation_generations')
-          .update({
-            status: 'failed',
-            completed_at: new Date().toISOString(),
-            error_data: {
-              message: error instanceof Error ? error.message : 'Unknown error',
-              stack: error instanceof Error ? error.stack : undefined
-            }
-          })
-          .eq('id', generation.id);
-      }
-      
-      throw error;
-    }
   }
 
   async getDocumentation(repositoryId: string, userId: string): Promise<any> {
@@ -650,8 +259,13 @@ export class DocumentationService {
   /**
    * Generate file-based documentation for a repository
    */
-  async generateFileBasedDocumentation(repositoryId: string, userId: string): Promise<RepositoryDocumentationResult> {
+  async generateFileBasedDocumentation(repositoryId: string, userId: string, jobId?: string): Promise<RepositoryDocumentationResult> {
     logger.info('DocumentationService: generateFileBasedDocumentation called', { repositoryId, userId });
+    
+    // Generate jobId if not provided
+    if (!jobId) {
+      jobId = uuidv4();
+    }
     
     const startTime = Date.now();
     let generation: any = null;
@@ -686,6 +300,7 @@ export class DocumentationService {
         .insert({
           repository_id: repositoryId,
           user_id: userId,
+          job_id: jobId,
           status: 'processing',
           trigger_type: 'manual',
           files_processed: 0,
@@ -811,18 +426,58 @@ export class DocumentationService {
         }
       }));
 
-      // Generate documentation for each file in batches with immediate saving
-      logger.info('Generating documentation for individual files', { 
+      // Queue file documentation jobs instead of processing synchronously
+      logger.info('Queueing documentation jobs for individual files', { 
         fileCount: fileContexts.length,
         firstFile: fileContexts[0]?.filePath 
       });
       
+      // Queue all file documentation jobs
+      const fileJobs: FileDocumentationJob[] = [];
+      for (const fileContext of fileContexts) {
+        const fileJobId = uuidv4();
+        const fileJob: FileDocumentationJob = {
+          fileJobId,
+          jobId,
+          userId,
+          repositoryId,
+          filePath: fileContext.filePath,
+          fileName: fileContext.filePath.split('/').pop() || '',
+          fileExtension: fileContext.filePath.split('.').pop() || '',
+          repositoryName: repository.repo_full_name
+        };
+        
+        fileJobs.push(fileJob);
+        
+        // Publish job to queue
+        await queueService.publishFileDocumentationJob(fileJob);
+      }
+      
+      logger.info('File documentation jobs queued', {
+        jobCount: fileJobs.length,
+        jobId
+      });
+      
+      // Update generation status to indicate files are being processed
+      await supabaseAdmin
+        .from('documentation_generations')
+        .update({
+          status: 'processing',
+          output_data: {
+            files_queued: fileJobs.length,
+            project_type: projectType
+          }
+        })
+        .eq('id', generation.id);
+      
+      // The actual file processing will happen asynchronously in the file worker
+      // For now, we'll skip the synchronous processing
       const fileDocumentations: FileDocumentationResult[] = [];
       let processedFiles = 0;
       let totalLinesProcessed = 0;
       const languageCount: { [key: string]: number } = {};
       
-      // Callback to save each file immediately as it's generated
+      // Skip the callback processing since files will be processed async
       const onFileCompleted = async (result: FileDocumentationResult, index: number, total: number) => {
         const fileInsert = {
           repository_id: repositoryId,
@@ -891,49 +546,39 @@ export class DocumentationService {
           .eq('id', generation.id);
       };
       
-      // Generate with callback
-      const generatedDocs = await this.fileDocumentation.generateBatchFileDocumentation(
-        fileContexts,
-        onFileCompleted
-      );
+      // Skip synchronous generation - files will be processed by the worker
+      // const generatedDocs = await this.fileDocumentation.generateBatchFileDocumentation(
+      //   fileContexts,
+      //   onFileCompleted
+      // );
+      // 
+      // fileDocumentations.push(...generatedDocs);
       
-      fileDocumentations.push(...generatedDocs);
-      
-      logger.info('File documentation generation completed', { 
-        documentsGenerated: fileDocumentations.length 
+      logger.info('File documentation jobs have been queued', { 
+        jobsQueued: fileJobs.length 
       });
       
-      // Check if we have any file documentations
-      if (fileDocumentations.length === 0) {
-        logger.warn('No file documentations were generated');
-        throw new Error('Failed to generate any file documentation');
-      }
+      // Since file processing is async, we'll skip summary generation here
+      // The summary will be generated after all files are processed by the worker
       
-      // Generate repository summary
-      logger.info('Generating final repository summary');
-      const summary = await this.fileDocumentation.generateRepositorySummary(
-        repository.repo_full_name,
-        allFiles,
-        fileDocumentations
-      );
-
-      // Calculate final metadata
-      const metadata = {
+      // For now, return a partial result indicating processing has started
+      const partialMetadata = {
         total_files: allFiles.length,
         languages: this.calculateLanguageDistribution(allFiles),
-        total_lines: fileDocumentations.reduce((sum, doc) => sum + (doc.metadata.lines_of_code || 0), 0),
-        documentation_coverage: (fileDocumentations.length / allFiles.length) * 100
+        total_lines: 0, // Will be updated as files are processed
+        documentation_coverage: 0, // Will be updated as files are processed
+        files_queued: fileJobs.length
       };
 
-      // Update the placeholder summary with final content
-      logger.info('Updating documentation summary with final content');
+      // Update the placeholder summary to indicate processing is in progress
+      logger.info('Setting documentation summary to processing state');
       const { error: summaryError } = await supabaseAdmin
         .from('documentation_summaries')
         .upsert({
           repository_id: repositoryId,
           generation_id: generation.id,
-          content: summary,
-          metadata,
+          content: 'Documentation generation in progress. Files are being processed asynchronously.',
+          metadata: partialMetadata,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'repository_id,generation_id'
@@ -949,14 +594,14 @@ export class DocumentationService {
         generationId: generation.id
       });
       
-      // Update the documentation record with final summary content
-      logger.info('Updating documentation record with final content');
+      // Update the documentation record to indicate processing state
+      logger.info('Updating documentation record to processing state');
       const { error: docUpdateError } = await supabaseAdmin
         .from('documentation')
         .upsert({
           repository_id: repositoryId,
           user_id: userId,
-          content: summary,
+          content: 'Documentation generation in progress. Files are being processed asynchronously.',
           generation_id: generation.id,
           updated_at: new Date().toISOString()
         }, {
@@ -965,41 +610,39 @@ export class DocumentationService {
         
       if (docUpdateError) {
         logger.error('Failed to update documentation record', { error: docUpdateError });
-        // Don't throw - the files are already saved
+        // Don't throw - continue processing
       }
       
-      // Note: Individual files have already been saved during generation via the callback
-
-      // Update generation record
+      // Update generation record to indicate jobs have been queued
       const processingTime = (Date.now() - startTime) / 1000;
       await supabaseAdmin
         .from('documentation_generations')
         .update({
-          status: 'completed',
-          files_processed: fileDocumentations.length,
+          status: 'processing',
+          files_processed: 0,
           processing_time_seconds: processingTime,
-          completed_at: new Date().toISOString(),
           output_data: {
             total_files: allFiles.length,
-            documented_files: fileDocumentations.length,
-            metadata
+            files_queued: fileJobs.length,
+            metadata: partialMetadata
           }
         })
         .eq('id', generation.id);
 
-      logger.info('File-based documentation generation completed', {
+      logger.info('File documentation jobs queued successfully', {
         repositoryId,
         generationId: generation.id,
-        filesProcessed: fileDocumentations.length,
+        filesQueued: fileJobs.length,
         processingTime
       });
 
+      // Return partial result indicating processing has started
       return {
         repository_id: repositoryId,
         generation_id: generation.id,
-        summary,
-        files: fileDocumentations,
-        metadata
+        summary: 'Documentation generation in progress',
+        files: [], // Files will be populated by the worker
+        metadata: partialMetadata
       };
       
     } catch (error) {

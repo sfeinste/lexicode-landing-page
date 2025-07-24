@@ -9,6 +9,18 @@ export interface DocumentationJob {
   generateFiles?: boolean;
 }
 
+export interface FileDocumentationJob {
+  fileJobId: string;
+  jobId: string;
+  userId: string;
+  repositoryId: string;
+  filePath: string;
+  fileContent?: string;
+  fileName: string;
+  fileExtension: string;
+  repositoryName: string;
+}
+
 export interface JobProgress {
   jobId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -23,6 +35,7 @@ class QueueService {
   private channel: amqplib.Channel | null = null;
   private readonly rabbitmqUrl: string;
   private readonly documentationQueue = 'documentation_jobs';
+  private readonly fileDocumentationQueue = 'file_documentation_jobs';
   private readonly progressExchange = 'progress_updates';
 
   constructor() {
@@ -47,8 +60,15 @@ class QueueService {
 
           this.channel = channel;
 
-          // Assert queue
+          // Assert queues
           channel.assertQueue(this.documentationQueue, {
+            durable: true,
+            arguments: {
+              'x-max-priority': 10
+            }
+          });
+
+          channel.assertQueue(this.fileDocumentationQueue, {
             durable: true,
             arguments: {
               'x-max-priority': 10
@@ -127,6 +147,55 @@ class QueueService {
           }
         } catch (error) {
           logger.error('Error processing job:', error);
+          if (this.channel) {
+            this.channel.nack(msg, false, false);
+          }
+        }
+      },
+      { noAck: false }
+    );
+  }
+
+  async publishFileDocumentationJob(job: FileDocumentationJob, priority: number = 5): Promise<void> {
+    if (!this.channel) {
+      throw new Error('Queue service not connected');
+    }
+
+    const message = Buffer.from(JSON.stringify(job));
+    
+    this.channel.sendToQueue(this.fileDocumentationQueue, message, {
+      persistent: true,
+      priority
+    });
+
+    logger.info(`Published file documentation job: ${job.fileJobId} for file: ${job.filePath}`);
+  }
+
+  async consumeFileDocumentationJobs(
+    handler: (job: FileDocumentationJob) => Promise<void>
+  ): Promise<void> {
+    if (!this.channel) {
+      throw new Error('Queue service not connected');
+    }
+
+    this.channel.prefetch(1);
+
+    this.channel.consume(
+      this.fileDocumentationQueue,
+      async (msg) => {
+        if (!msg) return;
+
+        try {
+          const job = JSON.parse(msg.content.toString()) as FileDocumentationJob;
+          logger.info(`Processing file documentation job: ${job.fileJobId} for file: ${job.filePath}`);
+          
+          await handler(job);
+          
+          if (this.channel) {
+            this.channel.ack(msg);
+          }
+        } catch (error) {
+          logger.error('Error processing file job:', error);
           if (this.channel) {
             this.channel.nack(msg, false, false);
           }

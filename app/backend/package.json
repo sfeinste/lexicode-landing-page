@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "dev:worker": "nodemon src/workers/documentationWorker.ts",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:worker\"",
+    "dev:file-worker": "nodemon src/workers/fileDocumentationWorker.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:worker\" \"npm run dev:file-worker\"",
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/workers/documentationWorker.js",
+    "start:file-worker": "node dist/workers/fileDocumentationWorker.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
