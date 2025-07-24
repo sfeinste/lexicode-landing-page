@@ -779,7 +779,9 @@ export class DocumentationService {
             total_files: result.metadata?.filesAnalyzed || 0,
             generation_time: result.metadata?.generationTime || 0,
             method: 'claude-code-sdk',
-            documentation_files_generated: result.files?.length || 0
+            documentation_files_generated: result.files?.length || 0,
+            languages: result.metadata?.languages || {},
+            total_lines: result.metadata?.totalLines || 0
           }
         }, {
           onConflict: 'repository_id,generation_id'
@@ -876,8 +878,8 @@ export class DocumentationService {
         files: fileResults,
         metadata: {
           total_files: result.metadata?.filesAnalyzed || 0,
-          languages: {},
-          total_lines: 0,
+          languages: result.metadata?.languages || {},
+          total_lines: result.metadata?.totalLines || 0,
           documentation_coverage: 100
         }
       };
@@ -1087,8 +1089,11 @@ export class DocumentationService {
     if (pathParts.includes('modules')) return 'module';
     if (pathParts.includes('patterns')) return 'pattern';
     
-    // Check specific file names
+    // Check specific file names in lexicode-docs folder
     if (fileName === 'summary.md') return 'summary';
+    if (fileName === 'apis.md') return 'api';
+    if (fileName === 'modules.md') return 'module';
+    if (fileName === 'patterns.md') return 'pattern';
     if (fileName === 'setup.md') return 'setup';
     if (fileName === 'configuration.md') return 'configuration';
     if (fileName === 'deployment.md') return 'deployment';

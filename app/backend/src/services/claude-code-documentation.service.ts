@@ -3,7 +3,7 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import * as tmp from 'tmp';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { query, type SDKMessage } from '@anthropic-ai/claude-code';
+import { query, type SDKMessage, type SDKAssistantMessage } from '@anthropic-ai/claude-code';
 import { GitHubAppService } from '@/modules/auth/services/github-app-service';
 
 export interface ClaudeCodeDocumentationConfig {
@@ -21,6 +21,8 @@ export interface ClaudeCodeDocumentationResult {
   metadata?: {
     filesAnalyzed: number;
     generationTime: number;
+    languages?: { [key: string]: number };
+    totalLines?: number;
   };
 }
 
@@ -80,7 +82,53 @@ export class ClaudeCodeDocumentationService {
         repoPath
       });
       
-      const prompt = `Generate comprehensive documentation for this codebase. Create a summary of the project including its purpose, architecture, main components, and how to get started. Format the output as markdown.`;
+      const prompt = `Your task is to analyze this codebase and create documentation files. You MUST complete ALL steps below.
+
+STEP 1: Create the documentation folder
+Execute this command first:
+\`\`\`bash
+mkdir -p lexicode-docs
+\`\`\`
+
+STEP 2: Analyze the codebase thoroughly
+- Use Glob "**/*.{ts,js,tsx,jsx,json}" to find all source files
+- Use Read to examine package.json for dependencies and project info
+- Use Read to check README.md if it exists
+- Use Grep to find API routes, components, patterns
+
+STEP 3: Create ALL these documentation files
+
+You MUST create each of these files using the Write tool:
+
+1. CREATE FILE: lexicode-docs/summary.md
+Use Write tool with file_path="lexicode-docs/summary.md" and content with:
+- Project name and description from package.json
+- Main features and purpose
+- Technology stack and dependencies
+- Project structure overview
+- Installation steps
+- Configuration details
+
+2. CREATE FILE: lexicode-docs/modules.md  
+Use Write tool with file_path="lexicode-docs/modules.md" and content with:
+- List all major modules/folders
+- Purpose of each module
+- Key files in each module
+- How modules interact
+
+3. CREATE FILE: lexicode-docs/patterns.md
+Use Write tool with file_path="lexicode-docs/patterns.md" and content with:
+- Design patterns used
+- Code organization
+- Architecture decisions
+
+4. CREATE FILE: lexicode-docs/apis.md
+Use Write tool with file_path="lexicode-docs/apis.md" and content with:
+- API endpoints found
+- Request/response formats
+- External APIs used
+
+Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREATE the files!`;
 
       // Use Claude Code to analyze the repository
       const messages: SDKMessage[] = [];
@@ -94,18 +142,34 @@ export class ClaudeCodeDocumentationService {
       }
       
       logger.info('Starting Claude Code query', {
-        maxTurns: 5,
+        maxTurns: 20,
         cwd: repoPath,
         hasApiKey: !!apiKey,
         apiKeyLength: apiKey?.length
       });
       
+      // Save original working directory and environment
+      const originalCwd = process.cwd();
+      const originalHome = process.env.HOME;
+      
       try {
+        // Change to the repository directory to ensure Claude Code only sees this directory
+        process.chdir(repoPath);
+        logger.info('Changed working directory for Claude Code', {
+          from: originalCwd,
+          to: repoPath
+        });
+        
+        // Set environment to restrict Claude Code access
+        process.env.HOME = repoPath;
+        
         for await (const message of query({
           prompt: prompt,
           options: {
-            maxTurns: 5,
-            cwd: repoPath
+            maxTurns: 20,
+            cwd: repoPath,
+            allowedTools: ["Read", "Grep", "Glob", "LS", "Write", "Bash"],
+            customSystemPrompt: "You are a documentation generator. Your PRIMARY task is to CREATE FILES, not just analyze. You MUST: 1) Create a lexicode-docs directory using Bash mkdir command, 2) Write AT LEAST 4 markdown files (summary.md, modules.md, patterns.md, apis.md) to that directory using the Write tool. Each Write tool call must include file_path='lexicode-docs/filename.md' and content with the documentation. DO NOT end your task until ALL files are created. Creating the files is MORE IMPORTANT than perfect analysis."
           }
         })) {
           messageCount++;
@@ -125,12 +189,50 @@ export class ClaudeCodeDocumentationService {
               message: message
             });
           } else if (message.type === 'user') {
-            logger.info('Claude Code user message logged');
+            const userMessage = message as any;
+            logger.info('Claude Code user message logged', {
+              hasToolResult: userMessage.message?.content?.some((c: any) => c.type === 'tool_result'),
+              parentToolId: userMessage.parent_tool_use_id
+            });
           } else if (message.type === 'assistant') {
             currentTurn++;
-            logger.info(`Claude Code assistant message received (turn ${currentTurn}/5)`, {
+            const assistantMessage = message as SDKAssistantMessage;
+            const assistantContent = assistantMessage.message.content as any;
+            
+            // Log tool usage
+            if (Array.isArray(assistantContent)) {
+              for (const block of assistantContent) {
+                if ((block as any).type === 'tool_use') {
+                  const toolName = (block as any).name;
+                  const toolInput = (block as any).input;
+                  logger.info('Claude Code using tool', {
+                    tool: toolName,
+                    toolId: (block as any).id,
+                    turn: currentTurn,
+                    input: toolName === 'Write' ? {
+                      file_path: toolInput?.file_path,
+                      contentLength: toolInput?.content?.length
+                    } : toolName === 'Bash' ? {
+                      command: toolInput?.command
+                    } : undefined
+                  });
+                }
+              }
+            }
+            
+            let contentPreview: string;
+            if (typeof assistantContent === 'string') {
+              contentPreview = assistantContent.substring(0, 20000);
+            } else {
+              contentPreview = JSON.stringify(assistantContent).substring(0, 200000);
+            }
+              
+            logger.info(`Claude Code assistant message received (turn ${currentTurn}/10)`, {
               messageNumber: messageCount,
-              contentLength: JSON.stringify(message.message.content).length
+              contentLength: JSON.stringify(assistantContent).length,
+              contentType: typeof assistantContent,
+              isArray: Array.isArray(assistantContent),
+              contentPreview
             });
           } else if (message.type === 'result') {
             logger.info('Claude Code analysis completed', {
@@ -156,6 +258,20 @@ export class ClaudeCodeDocumentationService {
           messageCount
         });
         throw queryError;
+      } finally {
+        // Restore original working directory and environment
+        try {
+          process.chdir(originalCwd);
+          if (originalHome !== undefined) {
+            process.env.HOME = originalHome;
+          }
+          logger.info('Restored original working directory and environment', { 
+            cwd: originalCwd,
+            home: originalHome 
+          });
+        } catch (chdirError) {
+          logger.error('Failed to restore working directory', { error: chdirError });
+        }
       }
 
       // Extract the final documentation content from messages
@@ -169,14 +285,70 @@ export class ClaudeCodeDocumentationService {
         documentationPreview: response.substring(0, 100) + '...'
       });
 
-      // Read generated documentation files
-      logger.info('Reading generated documentation files');
+      // Read the files created by Claude Code in the lexicode-docs folder
       const docsPath = path.join(repoPath, 'lexicode-docs');
-      const documentationFiles = await this.readDocumentationFiles(docsPath);
+      const documentationFiles: { path: string; content: string }[] = [];
+      let summaryContent = '';
       
-      // Find summary.md content
-      const summaryFile = documentationFiles.find(f => f.path === 'summary.md');
-      const summaryContent = summaryFile?.content || response;
+      // Log what Claude Code should have created
+      logger.info('Checking for created documentation files', {
+        expectedPath: docsPath,
+        cwd: repoPath
+      });
+      
+      try {
+        // Check if lexicode-docs folder exists
+        const docsFolderExists = await fs.access(docsPath).then(() => true).catch(() => false);
+        
+        if (docsFolderExists) {
+          logger.info('Reading documentation files from lexicode-docs folder');
+          
+          // Read all files in the lexicode-docs folder
+          const files = await fs.readdir(docsPath);
+          logger.info('Files found in lexicode-docs', { files });
+          
+          for (const file of files) {
+            if (file.endsWith('.md')) {
+              const filePath = path.join(docsPath, file);
+              const content = await fs.readFile(filePath, 'utf-8');
+              
+              // Store relative path from repo root
+              const relativePath = `lexicode-docs/${file}`;
+              documentationFiles.push({
+                path: relativePath,
+                content: content
+              });
+              
+              // Use summary.md as the main summary content
+              if (file === 'summary.md') {
+                summaryContent = content;
+              }
+              
+              logger.info('Read documentation file', {
+                file: relativePath,
+                contentLength: content.length
+              });
+            }
+          }
+          
+          logger.info('Documentation files collected', {
+            summaryLength: summaryContent.length,
+            filesCount: documentationFiles.length,
+            hasContent: !!summaryContent.trim()
+          });
+        } else {
+          logger.warn('lexicode-docs folder not found, using Claude response as summary');
+          summaryContent = response || '# Documentation Generation Failed\n\nThe documentation folder was not created.';
+        }
+      } catch (readError) {
+        logger.error('Error reading documentation files', { error: readError });
+        summaryContent = response || '# Documentation Generation Failed\n\nCould not read documentation files.';
+      }
+      
+      // If no summary was found, use a default message
+      if (!summaryContent) {
+        summaryContent = '# Documentation Generation Failed\n\nNo summary.md file was created.';
+      }
 
       // Count analyzed files
       logger.info('Counting files in repository');
@@ -194,7 +366,9 @@ export class ClaudeCodeDocumentationService {
         files: documentationFiles,
         metadata: {
           filesAnalyzed,
-          generationTime
+          generationTime,
+          languages: {},
+          totalLines: 0
         }
       };
 
@@ -209,7 +383,7 @@ export class ClaudeCodeDocumentationService {
       if (tmpDir) {
         try {
           logger.info('Cleaning up temporary directory', { tmpDir: tmpDir.name });
-          tmpDir.removeCallback();
+          //tmpDir.removeCallback();
           logger.info('Temporary directory cleaned up successfully');
         } catch (cleanupError) {
           logger.warn('Failed to clean up temporary directory', {
@@ -323,132 +497,67 @@ export class ClaudeCodeDocumentationService {
       });
     });
     
-    // First, check if there's a successful result message with documentation
-    const resultMessage = messages.find(
-      msg => msg.type === 'result' && msg.subtype === 'success' && 'result' in msg
-    );
-    
-    if (resultMessage && resultMessage.type === 'result' && 'result' in resultMessage && resultMessage.result) {
-      logger.info('Found result message with documentation', {
-        resultLength: resultMessage.result.length
-      });
-      return resultMessage.result;
-    }
-    
-    // If no result message, look for the last assistant message which likely contains the final documentation
-    const assistantMessages = messages.filter((msg): msg is (SDKMessage & { type: 'assistant'; message: any }) => 
-      msg.type === 'assistant' && 'message' in msg
-    );
-    
-    if (assistantMessages.length > 0) {
-      // Get the last assistant message
-      const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-      if (!lastAssistantMessage) {
-        logger.warn('No assistant message found');
-        return '';
-      }
-      
-      logger.info('Using last assistant message for documentation', {
-        totalAssistantMessages: assistantMessages.length
-      });
-      
-      const content = lastAssistantMessage.message.content;
-      if (typeof content === 'string') {
-        return content;
-      } else if (Array.isArray(content)) {
-        // Extract text from content blocks
-        const textParts = content
-          .filter((block: any) => block.type === 'text' && block.text)
-          .map((block: any) => block.text);
-        return textParts.join('\n\n');
-      }
-    }
-    
-    // Fallback: concatenate all assistant messages (original behavior)
-    logger.warn('No result or final assistant message found, concatenating all assistant messages');
+    // Collect all assistant message content
     const documentationParts: string[] = [];
+    let hasContent = false;
     
     for (const message of messages) {
-      if (message.type === 'assistant' && message.message) {
-        const content = message.message.content;
-        if (typeof content === 'string') {
+      if (message.type === 'assistant' && 'message' in message) {
+        const content = (message as any).message.content;
+        if (typeof content === 'string' && content.trim()) {
           documentationParts.push(content);
+          hasContent = true;
+          logger.debug('Added assistant message content', { 
+            length: content.length,
+            preview: content.substring(0, 100) 
+          });
         } else if (Array.isArray(content)) {
           for (const block of content) {
-            if (block.type === 'text' && block.text) {
+            if (block.type === 'text' && block.text && block.text.trim()) {
               documentationParts.push(block.text);
+              hasContent = true;
+              logger.debug('Added assistant message block', { 
+                length: block.text.length,
+                preview: block.text.substring(0, 100) 
+              });
             }
           }
         }
       }
     }
     
+    // Check for result message - this contains the final output
+    const resultMessage = messages.find(
+      msg => msg.type === 'result' && msg.subtype === 'success'
+    );
+    
+    if (resultMessage) {
+      const result = (resultMessage as any).result;
+      if (result && typeof result === 'string' && result.trim()) {
+        logger.info('Found result message with final output', {
+          resultLength: result.length,
+          preview: result.substring(0, 200)
+        });
+        // Use the result as the primary documentation
+        return result;
+      }
+    }
+    
+    if (!hasContent) {
+      logger.error('No documentation content found in any messages');
+      return '# Documentation Generation Failed\n\nNo documentation content was generated.';
+    }
+    
+    // Join all documentation parts
     const finalDocumentation = documentationParts.join('\n\n');
     
-    logger.info('Documentation extraction completed (fallback method)', {
+    logger.info('Documentation extraction completed', {
       totalParts: documentationParts.length,
-      finalLength: finalDocumentation.length
+      finalLength: finalDocumentation.length,
+      preview: finalDocumentation.substring(0, 200) + '...'
     });
     
     return finalDocumentation;
   }
 
-  /**
-   * Read documentation files from the generated docs folder
-   */
-  private async readDocumentationFiles(docsPath: string): Promise<{ path: string; content: string }[]> {
-    const files: { path: string; content: string }[] = [];
-    
-    try {
-      // Check if docs folder exists
-      const exists = await fs.access(docsPath).then(() => true).catch(() => false);
-      if (!exists) {
-        logger.warn('Documentation folder not found', { docsPath });
-        return files;
-      }
-
-      // Recursively read all markdown files
-      async function walkDocs(currentPath: string, relativePath: string = '') {
-        const entries = await fs.readdir(currentPath, { withFileTypes: true });
-        
-        for (const entry of entries) {
-          const fullPath = path.join(currentPath, entry.name);
-          const relPath = path.join(relativePath, entry.name);
-          
-          if (entry.isDirectory()) {
-            await walkDocs(fullPath, relPath);
-          } else if (entry.isFile() && entry.name.endsWith('.md')) {
-            try {
-              const content = await fs.readFile(fullPath, 'utf-8');
-              files.push({
-                path: relPath,
-                content
-              });
-              logger.debug('Read documentation file', { path: relPath, size: content.length });
-            } catch (readError) {
-              logger.error('Failed to read documentation file', { 
-                path: relPath, 
-                error: readError 
-              });
-            }
-          }
-        }
-      }
-
-      await walkDocs(docsPath);
-      
-      logger.info('Documentation files read successfully', {
-        totalFiles: files.length,
-        paths: files.map(f => f.path)
-      });
-      
-    } catch (error) {
-      logger.error('Error reading documentation files', { 
-        docsPath,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-    
-    return files;
-  }
 }
