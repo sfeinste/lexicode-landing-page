@@ -128,12 +128,23 @@ class DocumentationWorker {
     }, 2000); // Check every 2 seconds
     
     try {
-      // Call the service method
-      const result = await this.documentationService.generateFileBasedDocumentation(
-        job.repositoryId,
-        job.userId,
-        job.jobId
-      );
+      // Call the service method based on the selected method
+      let result;
+      if (job.method === 'claude-code') {
+        logger.info('Using Claude Code SDK for documentation generation');
+        result = await this.documentationService.generateClaudeCodeDocumentation(
+          job.repositoryId,
+          job.userId,
+          job.jobId
+        );
+      } else {
+        logger.info('Using file-by-file method for documentation generation');
+        result = await this.documentationService.generateFileBasedDocumentation(
+          job.repositoryId,
+          job.userId,
+          job.jobId
+        );
+      }
       
       // Clear the interval
       clearInterval(progressInterval);

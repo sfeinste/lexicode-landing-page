@@ -31,7 +31,7 @@ export const documentationApi = {
   // New file-based documentation endpoints
   async generateFiles(repositoryId: string): Promise<GenerateDocumentationJobResponse> {
     const response = await api.post<GenerateDocumentationJobResponse>(
-      `/api/v1/documentation/generate-files/${repositoryId}`
+      `/api/v1/documentation/generate/${repositoryId}/advanced`
     );
     return response.data;
   },

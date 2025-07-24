@@ -20,6 +20,9 @@ router.get('/:repositoryId/files', documentationController.getFileDocumentation.
 router.get('/:repositoryId/files/*', documentationController.getFileDocumentationByPath.bind(documentationController));
 router.get('/:repositoryId/summary', documentationController.getDocumentationSummary.bind(documentationController));
 
+// Claude Code SDK documentation route
+router.post('/generate/:repositoryId/advanced', documentationController.generateClaudeCodeDocumentation.bind(documentationController));
+
 // Legacy/future routes (keeping for compatibility)
 router.get('/projects', documentationController.getProjects.bind(documentationController));
 router.get('/projects/:id', documentationController.getProject.bind(documentationController));

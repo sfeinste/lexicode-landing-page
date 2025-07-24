@@ -206,3 +206,99 @@ To run the new architecture:
    - File documentation worker (processes individual files)
 
 Documentation generation now happens asynchronously with improved scalability and resilience.
+
+---
+
+# Claude Code SDK Documentation Generation Implementation Plan
+
+## Overview
+Implement a new documentation generation service using the Claude Code SDK that clones repositories locally and generates documentation for the entire codebase at once, as an alternative to the current file-by-file queue-based approach.
+
+## TODO Items
+
+- [x] Install Claude Code SDK dependency and required packages for git cloning
+- [x] Create ClaudeCodeDocumentationService in app/backend/src/services
+- [x] Add repository cloning functionality with temporary directory management
+- [x] Implement Claude Code SDK integration for documentation generation
+- [x] Create configuration option to choose between file-by-file and Claude Code SDK approaches
+- [x] Update API endpoint to support new documentation generation method
+- [ ] Test the new service with a sample repository
+- [x] Update documentation generation worker to support both methods
+
+## Implementation Details
+
+### Current Architecture
+- **Queue-based**: Uses RabbitMQ to process files one by one
+- **GitHub API**: Fetches files via GitHub API (no cloning)
+- **Anthropic SDK**: Uses standard Anthropic SDK for AI generation
+- **Storage**: Saves markdown documentation in Supabase tables
+
+### New Claude Code SDK Approach
+- **Local cloning**: Clone entire repository to temp directory
+- **Claude Code SDK**: Use SDK to analyze entire codebase at once
+- **Same storage**: Store results in same Supabase tables for consistency
+- **Option-based**: Users can choose between approaches
+
+### Key Changes Needed
+1. Add git cloning capability (likely using `simple-git` package)
+2. Implement temp directory management for cloned repos
+3. Create new service class for Claude Code SDK integration
+4. Modify existing flow to support method selection
+5. Ensure proper cleanup of temp directories
+
+## Notes
+- Keep changes minimal and simple as per project guidelines
+- Maintain compatibility with existing database schema
+- Test thoroughly before full integration
+
+## Review
+
+### Summary of Changes
+
+Successfully integrated Claude Code SDK as an alternative documentation generation method alongside the existing file-by-file approach.
+
+### Key Components Added:
+
+1. **Dependencies**
+   - Added `@anthropic-ai/claude-code` (v1.0.59) - Claude Code SDK package
+   - Added `simple-git` (v3.28.0) - For cloning repositories
+   - Added `tmp` (v0.2.3) - For temporary directory management
+   - Added `@types/tmp` - TypeScript types
+
+2. **ClaudeCodeDocumentationService (`claude-code-documentation.service.ts`)**
+   - Clones repositories to temporary directory using GitHub App authentication
+   - Uses Claude Code SDK to analyze entire codebase at once
+   - Properly cleans up temporary directories after use
+   - Returns documentation in same format as existing services
+
+3. **API Endpoint Updates**
+   - New route: `POST /api/v1/documentation/generate/:repositoryId/advanced`
+   - Accepts `method` parameter in request body: `'claude-code'` or `'file-by-file'`
+   - Defaults to `'file-by-file'` for backward compatibility
+
+4. **Documentation Service Updates**
+   - Added `generateClaudeCodeDocumentation()` method
+   - Integrated with existing database schema (no changes needed)
+   - Stores results in same tables as file-by-file approach
+
+5. **Worker Updates**
+   - Documentation worker now checks job method and routes to appropriate service
+   - Supports both generation methods seamlessly
+
+### Architecture Highlights:
+- **Authentication**: Uses same GitHub App installation tokens as existing code
+- **Database**: No schema changes required - uses existing tables
+- **Backward Compatible**: Existing endpoints and functionality unchanged
+- **Clean Implementation**: Minimal changes to existing code
+- **Resource Management**: Proper cleanup of cloned repositories
+
+### Usage:
+To use the new Claude Code SDK method, make a POST request to:
+```
+POST /api/v1/documentation/generate/{repositoryId}/advanced
+{
+  "method": "claude-code"
+}
+```
+
+The system will clone the repository, analyze it with Claude Code SDK, and store the documentation in the database.

@@ -7,6 +7,7 @@ export interface DocumentationJob {
   repositoryId: string;
   repositoryName: string;
   generateFiles?: boolean;
+  method?: 'file-by-file' | 'claude-code';
 }
 
 export interface FileDocumentationJob {

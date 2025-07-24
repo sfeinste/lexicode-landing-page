@@ -276,6 +276,56 @@ export class DocumentationController {
   }
 
   /**
+   * Generate documentation using Claude Code SDK
+   */
+  async generateClaudeCodeDocumentation(req: Request, res: Response): Promise<void> {
+    try {
+      const { repositoryId } = req.params;
+      const userId = (req as any).user.id;
+      const method  = 'claude-code'
+      
+      logger.info('Generate documentation request with method selection', { repositoryId, userId, method });
+      
+      if (!repositoryId) {
+        res.status(400).json({ error: 'Repository ID is required' });
+        return;
+      }
+      
+      // Get repository info to include in job
+      const repositoryInfo = await this.documentationService.getRepositoryInfo(repositoryId, userId);
+      if (!repositoryInfo) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
+      
+      // Create job and enqueue it
+      const jobId = uuidv4();
+      const job: DocumentationJob = {
+        jobId,
+        userId,
+        repositoryId,
+        repositoryName: repositoryInfo.name,
+        generateFiles: true,
+        method: method || 'file-by-file' // Default to file-by-file for backward compatibility
+      };
+      
+      await queueService.publishDocumentationJob(job);
+      
+      res.status(202).json({
+        message: `Documentation generation queued (${method || 'file-by-file'} method)`,
+        jobId,
+        status: 'pending',
+        method: method || 'file-by-file'
+      });
+    } catch (error) {
+      logger.error('Generate documentation error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      });
+    }
+  }
+
+  /**
    * Get all file documentation for a repository
    */
   async getFileDocumentation(req: Request, res: Response): Promise<void> {

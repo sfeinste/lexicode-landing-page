@@ -8,6 +8,7 @@ import { CodeContextExtractionService } from '@/services/code-context-extraction
 import { FileDocumentationService, FileContext } from '@/services/file-documentation.service';
 import { queueService, FileDocumentationJob } from '@/services/queueService';
 import { v4 as uuidv4 } from 'uuid';
+import { ClaudeCodeDocumentationService } from '@/services/claude-code-documentation.service';
 import { 
   DocumentationFile as DocFile, 
   DocumentationSummary, 
@@ -70,6 +71,7 @@ export class DocumentationService {
   private codeChunking: CodeChunkingService;
   private codeContextExtraction: CodeContextExtractionService;
   private fileDocumentation: FileDocumentationService;
+  private claudeCodeDocumentation: ClaudeCodeDocumentationService;
 
   constructor() {
     this.anthropicService = new AnthropicService();
@@ -77,6 +79,7 @@ export class DocumentationService {
     this.codeChunking = new CodeChunkingService();
     this.codeContextExtraction = new CodeContextExtractionService();
     this.fileDocumentation = new FileDocumentationService();
+    this.claudeCodeDocumentation = new ClaudeCodeDocumentationService();
   }
   async createProject(data: any): Promise<DocumentationProject> {
     // TODO: Implement create project
@@ -668,6 +671,240 @@ export class DocumentationService {
   }
 
   /**
+   * Generate documentation using Claude Code SDK
+   */
+  async generateClaudeCodeDocumentation(repositoryId: string, userId: string, jobId?: string): Promise<RepositoryDocumentationResult> {
+    logger.info('DocumentationService: generateClaudeCodeDocumentation called', { repositoryId, userId });
+    
+    // Generate jobId if not provided
+    if (!jobId) {
+      jobId = uuidv4();
+    }
+    
+    const startTime = Date.now();
+    let generation: any = null;
+    
+    try {
+      // Get repository details
+      const { data: repository, error: repoError } = await supabaseAdmin
+        .from('repository_access')
+        .select('*')
+        .eq('id', repositoryId)
+        .eq('user_id', userId)
+        .single();
+        
+      if (repoError || !repository) {
+        throw new Error('Repository not found or access denied');
+      }
+
+      // Get GitHub installation
+      const { data: installation, error: installError } = await supabaseAdmin
+        .from('github_installations')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+        
+      if (installError || !installation) {
+        throw new Error('GitHub installation not found');
+      }
+
+      // Create documentation generation record
+      const { data: newGeneration, error: genError } = await supabaseAdmin
+        .from('documentation_generations')
+        .insert({
+          repository_id: repositoryId,
+          user_id: userId,
+          job_id: jobId,
+          status: 'processing',
+          trigger_type: 'manual',
+          files_processed: 0,
+          files_failed: 0,
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+        
+      if (genError || !newGeneration) {
+        throw new Error('Failed to create generation record');
+      }
+      
+      generation = newGeneration;
+      
+      // Extract owner and name from repo_full_name
+      const [owner, name] = repository.repo_full_name.split('/');
+      const branch = repository.default_branch || 'main';
+      
+      // Create repository URL
+      const repositoryUrl = `https://github.com/${owner}/${name}`;
+      
+      logger.info('Using Claude Code SDK to generate documentation', { 
+        repositoryUrl, 
+        branch,
+        installationId: installation.github_installation_id 
+      });
+      
+      // Generate documentation using Claude Code SDK
+      const result = await this.claudeCodeDocumentation.generateRepositoryDocumentation({
+        repositoryUrl,
+        installationId: installation.github_installation_id,
+        branch
+      });
+      
+      // Save the generated documentation
+      const { error: docError } = await supabaseAdmin
+        .from('documentation')
+        .upsert({
+          repository_id: repositoryId,
+          user_id: userId,
+          content: result.content,
+          generation_id: generation.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'repository_id,user_id'
+        });
+        
+      if (docError) {
+        throw new Error('Failed to save documentation');
+      }
+      
+      // Save documentation summary
+      const { error: summaryError } = await supabaseAdmin
+        .from('documentation_summaries')
+        .upsert({
+          repository_id: repositoryId,
+          generation_id: generation.id,
+          content: result.content,
+          metadata: {
+            total_files: result.metadata?.filesAnalyzed || 0,
+            generation_time: result.metadata?.generationTime || 0,
+            method: 'claude-code-sdk',
+            documentation_files_generated: result.files?.length || 0
+          }
+        }, {
+          onConflict: 'repository_id,generation_id'
+        });
+        
+      if (summaryError) {
+        throw new Error('Failed to save documentation summary');
+      }
+      
+      // Save individual documentation files if available
+      if (result.files && result.files.length > 0) {
+        logger.info('Saving individual documentation files', { 
+          fileCount: result.files.length 
+        });
+        
+        for (const file of result.files) {
+          try {
+            // Determine file metadata
+            const fileType = this.getFileTypeFromPath(file.path);
+            const language = 'markdown';
+            
+            const { error: fileError } = await supabaseAdmin
+              .from('documentation_files')
+              .upsert({
+                repository_id: repositoryId,
+                generation_id: generation.id,
+                file_path: file.path,
+                file_type: fileType,
+                language: language,
+                generated_documentation: file.content,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'repository_id,generation_id,file_path'
+              });
+              
+            if (fileError) {
+              logger.error('Failed to save documentation file', { 
+                filePath: file.path, 
+                error: fileError 
+              });
+            } else {
+              logger.debug('Saved documentation file', { 
+                filePath: file.path,
+                contentLength: file.content.length 
+              });
+            }
+          } catch (fileError) {
+            logger.error('Error processing documentation file', { 
+              filePath: file.path, 
+              error: fileError 
+            });
+          }
+        }
+      }
+      
+      // Update generation record
+      const processingTime = (Date.now() - startTime) / 1000;
+      await supabaseAdmin
+        .from('documentation_generations')
+        .update({
+          status: 'completed',
+          files_processed: result.metadata?.filesAnalyzed || 0,
+          processing_time_seconds: processingTime,
+          completed_at: new Date().toISOString(),
+          output_data: {
+            method: 'claude-code-sdk',
+            files_analyzed: result.metadata?.filesAnalyzed || 0
+          }
+        })
+        .eq('id', generation.id);
+      
+      logger.info('Claude Code documentation generation completed', {
+        repositoryId,
+        generationId: generation.id,
+        filesAnalyzed: result.metadata?.filesAnalyzed || 0,
+        processingTime
+      });
+      
+      // Prepare file results for response
+      const fileResults = result.files?.map(file => ({
+        file_path: file.path,
+        documentation: file.content,
+        metadata: {
+          file_type: this.getFileTypeFromPath(file.path),
+          language: 'markdown'
+        }
+      })) || [];
+      
+      return {
+        repository_id: repositoryId,
+        generation_id: generation.id,
+        summary: result.content,
+        files: fileResults,
+        metadata: {
+          total_files: result.metadata?.filesAnalyzed || 0,
+          languages: {},
+          total_lines: 0,
+          documentation_coverage: 100
+        }
+      };
+      
+    } catch (error) {
+      logger.error('Claude Code documentation generation failed', { repositoryId, error });
+      
+      // Update generation record with error
+      if (generation) {
+        await supabaseAdmin
+          .from('documentation_generations')
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error_data: {
+              message: error instanceof Error ? error.message : 'Unknown error',
+              stack: error instanceof Error ? error.stack : undefined
+            }
+          })
+          .eq('id', generation.id);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
    * Get file-based documentation for a repository
    */
   async getFileDocumentation(repositoryId: string, userId: string): Promise<DocFile[]> {
@@ -836,5 +1073,27 @@ export class DocumentationService {
     });
     
     return distribution;
+  }
+  
+  /**
+   * Determine file type from file path
+   */
+  private getFileTypeFromPath(filePath: string): string {
+    const pathParts = filePath.toLowerCase().split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    
+    // Check folder structure
+    if (pathParts.includes('api')) return 'api';
+    if (pathParts.includes('modules')) return 'module';
+    if (pathParts.includes('patterns')) return 'pattern';
+    
+    // Check specific file names
+    if (fileName === 'summary.md') return 'summary';
+    if (fileName === 'setup.md') return 'setup';
+    if (fileName === 'configuration.md') return 'configuration';
+    if (fileName === 'deployment.md') return 'deployment';
+    
+    // Default
+    return 'documentation';
   }
 }
