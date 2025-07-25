@@ -1082,23 +1082,36 @@ export class DocumentationService {
    */
   private getFileTypeFromPath(filePath: string): string {
     const pathParts = filePath.toLowerCase().split('/');
-    const fileName = pathParts[pathParts.length - 1];
+    const fileName = pathParts[pathParts.length - 1] || '';
     
-    // Check folder structure
+    // Check for root-level documentation files
+    if (fileName === 'readme.md' && pathParts.length === 2) return 'overview';
+    if (fileName === 'setup.md' && pathParts.length === 2) return 'setup';
+    if (fileName === 'api.md' && pathParts.length === 2) return 'api';
+    
+    // Check folder structure for module-level docs
+    if (pathParts.includes('auth')) return 'auth';
     if (pathParts.includes('api')) return 'api';
-    if (pathParts.includes('modules')) return 'module';
-    if (pathParts.includes('patterns')) return 'pattern';
+    if (pathParts.includes('services')) return 'service';
+    if (pathParts.includes('components')) return 'component';
+    if (pathParts.includes('controllers')) return 'controller';
+    if (pathParts.includes('models')) return 'model';
+    if (pathParts.includes('database') || pathParts.includes('db')) return 'database';
+    if (pathParts.includes('config')) return 'configuration';
+    if (pathParts.includes('utils') || pathParts.includes('helpers')) return 'utility';
+    if (pathParts.includes('tests') || pathParts.includes('test')) return 'test';
     
-    // Check specific file names in lexicode-docs folder
+    // Check specific file names
+    if (fileName === 'readme.md') return 'module'; // Module-level READMEs
     if (fileName === 'summary.md') return 'summary';
-    if (fileName === 'apis.md') return 'api';
-    if (fileName === 'modules.md') return 'module';
-    if (fileName === 'patterns.md') return 'pattern';
-    if (fileName === 'setup.md') return 'setup';
-    if (fileName === 'configuration.md') return 'configuration';
-    if (fileName === 'deployment.md') return 'deployment';
+    if (fileName && fileName.includes('architecture')) return 'architecture';
+    if (fileName && fileName.includes('design')) return 'design';
+    if (fileName && fileName.includes('workflow')) return 'workflow';
+    if (fileName && fileName.includes('deployment')) return 'deployment';
     
-    // Default
+    // Default based on depth
+    if (pathParts.length > 3) return 'file'; // Deep files are likely file-specific docs
+    
     return 'documentation';
   }
 }

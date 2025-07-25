@@ -82,53 +82,94 @@ export class ClaudeCodeDocumentationService {
         repoPath
       });
       
-      const prompt = `Your task is to analyze this codebase and create documentation files. You MUST complete ALL steps below.
+      const prompt = `Your task is to analyze this codebase and create comprehensive documentation following a hierarchical pattern that mirrors the source code structure.
 
-STEP 1: Create the documentation folder
-Execute this command first:
+STEP 1: Initial Setup
+Execute these commands to create the base documentation structure:
 \`\`\`bash
 mkdir -p lexicode-docs
 \`\`\`
 
-STEP 2: Analyze the codebase thoroughly
-- Use Glob "**/*.{ts,js,tsx,jsx,json}" to find all source files
-- Use Read to examine package.json for dependencies and project info
-- Use Read to check README.md if it exists
-- Use Grep to find API routes, components, patterns
+STEP 2: Deep Codebase Analysis
+- Use Glob "**/*.{ts,js,tsx,jsx,json,py,go,java,rb,rs,md}" to find ALL source files
+- Use Read to examine package.json/requirements.txt/go.mod/Cargo.toml for dependencies
+- Use Read to check README.md and any existing documentation
+- Use Grep to identify:
+  - API endpoints and routes
+  - Core business logic modules
+  - Authentication/authorization patterns
+  - Data models and schemas
+  - Configuration systems
+  - Service integrations
 
-STEP 3: Create ALL these documentation files
+STEP 3: Create Hierarchical Documentation Structure
 
-You MUST create each of these files using the Write tool:
+You MUST create documentation at THREE levels:
 
-1. CREATE FILE: lexicode-docs/summary.md
-Use Write tool with file_path="lexicode-docs/summary.md" and content with:
-- Project name and description from package.json
-- Main features and purpose
-- Technology stack and dependencies
-- Project structure overview
-- Installation steps
-- Configuration details
+LEVEL 1 - Repository Level (High Priority):
+Create these files in lexicode-docs/ root:
 
-2. CREATE FILE: lexicode-docs/modules.md  
-Use Write tool with file_path="lexicode-docs/modules.md" and content with:
-- List all major modules/folders
-- Purpose of each module
-- Key files in each module
-- How modules interact
+1. lexicode-docs/README.md - Architecture overview containing:
+   - System design and high-level architecture
+   - Core concepts and domain models  
+   - Technology stack decisions and rationale
+   - Development workflow and contribution guidelines
+   - Project structure overview with key directories
 
-3. CREATE FILE: lexicode-docs/patterns.md
-Use Write tool with file_path="lexicode-docs/patterns.md" and content with:
-- Design patterns used
-- Code organization
-- Architecture decisions
+2. lexicode-docs/SETUP.md - Installation and setup:
+   - Prerequisites and system requirements
+   - Step-by-step installation instructions
+   - Environment configuration details
+   - Common setup issues and troubleshooting
 
-4. CREATE FILE: lexicode-docs/apis.md
-Use Write tool with file_path="lexicode-docs/apis.md" and content with:
-- API endpoints found
-- Request/response formats
-- External APIs used
+3. lexicode-docs/API.md - API contracts:
+   - All API endpoints with methods and paths
+   - Request/response schemas with examples
+   - Authentication requirements
+   - Error codes and handling
 
-Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREATE the files!`;
+LEVEL 2 - Module/Feature Level:
+For each major functional area (auth, payments, users, etc.), create a folder and documentation:
+
+Example: If you find authentication code, create:
+\`\`\`bash
+mkdir -p lexicode-docs/auth
+\`\`\`
+Then write: lexicode-docs/auth/README.md with:
+- Module purpose and responsibilities
+- Key interfaces and contracts
+- Dependencies and interactions with other modules
+- Configuration options
+- Common patterns used
+
+LEVEL 3 - Complex File Level:
+For files with non-obvious business logic (>200 lines or complex algorithms), create targeted docs:
+
+Example: For src/services/payment-processor.ts, create:
+lexicode-docs/services/payment-processor.md with:
+- Business logic explanation (the "why")
+- Algorithm descriptions
+- Edge cases and error handling
+- Integration points
+
+IMPORTANT GUIDELINES:
+1. Mirror the source code structure - if code is in src/auth/, docs go in lexicode-docs/auth/
+2. Use clear, descriptive filenames that match or relate to source files
+3. Focus on the "WHY" and system interactions, not just "WHAT" the code does
+4. Document only high-value areas - skip trivial utility files
+5. For each module folder you create, include a README.md explaining that module
+6. Use Bash mkdir -p to create nested directories as needed
+
+Remember: CREATE the directory structure that mirrors the codebase, then populate it with meaningful documentation files!
+
+PRIORITIZATION for large codebases:
+- Focus on core business logic first (controllers, services, models)
+- Skip test files unless they contain important documentation comments
+- Limit file-level docs to files >500 lines or with complex algorithms
+- Create module-level docs for ALL major features
+- Prioritize documenting public APIs and interfaces
+- Document configuration and environment setup thoroughly
+- If you're approaching turn limits, ensure you've covered the most critical parts`;
 
       // Use Claude Code to analyze the repository
       const messages: SDKMessage[] = [];
@@ -166,10 +207,10 @@ Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREAT
         for await (const message of query({
           prompt: prompt,
           options: {
-            maxTurns: 20,
+            maxTurns: 100,
             cwd: repoPath,
             allowedTools: ["Read", "Grep", "Glob", "LS", "Write", "Bash"],
-            customSystemPrompt: "You are a documentation generator. Your PRIMARY task is to CREATE FILES, not just analyze. You MUST: 1) Create a lexicode-docs directory using Bash mkdir command, 2) Write AT LEAST 4 markdown files (summary.md, modules.md, patterns.md, apis.md) to that directory using the Write tool. Each Write tool call must include file_path='lexicode-docs/filename.md' and content with the documentation. DO NOT end your task until ALL files are created. Creating the files is MORE IMPORTANT than perfect analysis."
+            customSystemPrompt: "You are a documentation generator creating hierarchical documentation that mirrors source code structure. Your PRIMARY task is to CREATE a comprehensive documentation tree. You MUST: 1) Create lexicode-docs directory and subdirectories matching the source structure using Bash mkdir -p commands, 2) Write documentation files at THREE levels: repository (README.md, SETUP.md, API.md), module (e.g., lexicode-docs/auth/README.md), and complex files (e.g., lexicode-docs/services/payment-processor.md). Focus on WHY and system interactions, not WHAT. Create AT LEAST 5-10 documentation files covering different levels. Each Write tool must specify the full path like 'lexicode-docs/auth/README.md'. Creating the hierarchical file structure is CRITICAL."
           }
         })) {
           messageCount++;
@@ -227,7 +268,7 @@ Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREAT
               contentPreview = JSON.stringify(assistantContent).substring(0, 200000);
             }
               
-            logger.info(`Claude Code assistant message received (turn ${currentTurn}/10)`, {
+            logger.info(`Claude Code assistant message received (turn ${currentTurn}/100)`, {
               messageNumber: messageCount,
               contentLength: JSON.stringify(assistantContent).length,
               contentType: typeof assistantContent,
@@ -303,38 +344,51 @@ Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREAT
         if (docsFolderExists) {
           logger.info('Reading documentation files from lexicode-docs folder');
           
-          // Read all files in the lexicode-docs folder
-          const files = await fs.readdir(docsPath);
-          logger.info('Files found in lexicode-docs', { files });
-          
-          for (const file of files) {
-            if (file.endsWith('.md')) {
-              const filePath = path.join(docsPath, file);
-              const content = await fs.readFile(filePath, 'utf-8');
+          // Recursively read all markdown files in the lexicode-docs folder
+          async function readDocsRecursively(dirPath: string, baseDir: string = ''): Promise<void> {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+            
+            for (const entry of entries) {
+              const fullPath = path.join(dirPath, entry.name);
+              const relativePath = baseDir ? `${baseDir}/${entry.name}` : entry.name;
               
-              // Store relative path from repo root
-              const relativePath = `lexicode-docs/${file}`;
-              documentationFiles.push({
-                path: relativePath,
-                content: content
-              });
-              
-              // Use summary.md as the main summary content
-              if (file === 'summary.md') {
-                summaryContent = content;
+              if (entry.isDirectory()) {
+                // Recursively read subdirectories
+                await readDocsRecursively(fullPath, relativePath);
+              } else if (entry.isFile() && entry.name.endsWith('.md')) {
+                const content = await fs.readFile(fullPath, 'utf-8');
+                
+                // Store relative path from lexicode-docs root
+                const docRelativePath = `lexicode-docs/${relativePath}`;
+                documentationFiles.push({
+                  path: docRelativePath,
+                  content: content
+                });
+                
+                // Use README.md at root level as the main summary content
+                if (relativePath === 'README.md') {
+                  summaryContent = content;
+                }
+                // Fallback to summary.md if README.md doesn't exist
+                else if (relativePath === 'summary.md' && !summaryContent) {
+                  summaryContent = content;
+                }
+                
+                logger.info('Read documentation file', {
+                  file: docRelativePath,
+                  contentLength: content.length
+                });
               }
-              
-              logger.info('Read documentation file', {
-                file: relativePath,
-                contentLength: content.length
-              });
             }
           }
+          
+          await readDocsRecursively(docsPath);
           
           logger.info('Documentation files collected', {
             summaryLength: summaryContent.length,
             filesCount: documentationFiles.length,
-            hasContent: !!summaryContent.trim()
+            hasContent: !!summaryContent.trim(),
+            files: documentationFiles.map(f => f.path)
           });
         } else {
           logger.warn('lexicode-docs folder not found, using Claude response as summary');
@@ -347,7 +401,7 @@ Remember: You MUST use the Write tool for EACH file. Do not just analyze - CREAT
       
       // If no summary was found, use a default message
       if (!summaryContent) {
-        summaryContent = '# Documentation Generation Failed\n\nNo summary.md file was created.';
+        summaryContent = '# Documentation Generation Failed\n\nNo README.md or summary.md file was created in the lexicode-docs folder.';
       }
 
       // Count analyzed files
