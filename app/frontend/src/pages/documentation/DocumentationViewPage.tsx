@@ -84,9 +84,9 @@ export const DocumentationViewPage = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="h-screen flex flex-col">
       {/* Always show multi-page view */}
-      <div className="glass-effect rounded-lg border border-white/10 h-[calc(100vh-200px)]">
+      <div className="flex-1 overflow-hidden">
         <MultiPageDocumentationView
           repositoryId={repositoryId!}
           repositoryName={repositoryName}

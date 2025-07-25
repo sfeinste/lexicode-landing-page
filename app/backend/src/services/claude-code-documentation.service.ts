@@ -358,10 +358,9 @@ PRIORITIZATION for large codebases:
               } else if (entry.isFile() && entry.name.endsWith('.md')) {
                 const content = await fs.readFile(fullPath, 'utf-8');
                 
-                // Store relative path from lexicode-docs root
-                const docRelativePath = `lexicode-docs/${relativePath}`;
+                // Store relative path without lexicode-docs prefix
                 documentationFiles.push({
-                  path: docRelativePath,
+                  path: relativePath,
                   content: content
                 });
                 
@@ -375,7 +374,7 @@ PRIORITIZATION for large codebases:
                 }
                 
                 logger.info('Read documentation file', {
-                  file: docRelativePath,
+                  file: relativePath,
                   contentLength: content.length
                 });
               }

@@ -57,4 +57,26 @@
       transform: translateY(0);
     }
   }
+  
+  /* Prose overrides for better markdown display */
+  .prose pre {
+    @apply overflow-x-auto;
+  }
+  
+  .prose code:not(pre code) {
+    @apply break-words;
+  }
+  
+  .prose table {
+    @apply block overflow-x-auto;
+  }
+  
+  .prose img {
+    @apply max-w-full h-auto;
+  }
+  
+  /* Ensure pre blocks have horizontal scroll */
+  .prose pre code {
+    @apply block w-max min-w-full;
+  }
 }

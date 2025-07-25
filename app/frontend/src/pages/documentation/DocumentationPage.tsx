@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, Download, Eye, MoreVertical, Calendar, GitBranch, Loader2, ExternalLink } from 'lucide-react';
+import { Plus, Search, FileText, Eye, Calendar, GitBranch, Loader2, ExternalLink } from 'lucide-react';
 import { api } from '@/services/api';
 
 interface DocumentationItem {
