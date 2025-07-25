@@ -57,16 +57,16 @@ export function DocumentationProgressModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass-effect rounded-lg p-6 max-w-md w-full mx-4 border border-white/10">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-200">
             Generating Documentation
           </h3>
           {progress?.status === 'completed' && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              className="text-gray-400 hover:text-gray-200"
             >
               <X className="h-5 w-5" />
             </button>
@@ -74,39 +74,39 @@ export function DocumentationProgressModal({
         </div>
 
         <div className="mb-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            Repository: <span className="font-medium">{repositoryName}</span>
+          <p className="text-sm text-gray-400 mb-2">
+            Repository: <span className="font-medium text-gray-200">{repositoryName}</span>
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Status: <span className="font-medium">{getStatusText()}</span>
+          <p className="text-sm text-gray-400">
+            Status: <span className="font-medium text-gray-200">{getStatusText()}</span>
           </p>
         </div>
 
         <div className="mb-4">
-          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div className="bg-dark-200 rounded-full h-2 overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${getStatusColor()}`}
               style={{ width: `${getProgressPercentage()}%` }}
             />
           </div>
           {progress?.status === 'processing' && progress.totalFiles && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+            <p className="text-xs text-gray-500 mt-1 text-center">
               {getProgressPercentage()}% complete
             </p>
           )}
         </div>
 
         {progress?.status === 'failed' && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4">
-            <p className="text-sm text-red-800 dark:text-red-300">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3 mb-4">
+            <p className="text-sm text-red-400">
               {progress.error || 'An error occurred during documentation generation'}
             </p>
           </div>
         )}
 
         {progress?.status === 'completed' && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-3 mb-4">
-            <p className="text-sm text-green-800 dark:text-green-300">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-md p-3 mb-4">
+            <p className="text-sm text-green-400">
               Documentation has been generated successfully!
             </p>
           </div>
@@ -116,7 +116,7 @@ export function DocumentationProgressModal({
           <div className="flex justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="px-4 py-2 gradient-bg text-white rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
             >
               Close
             </button>

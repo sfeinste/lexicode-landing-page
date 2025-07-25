@@ -50,74 +50,74 @@ export const DashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h1>
-        <p className="text-gray-600">
+      <div className="glass-effect rounded-lg p-6 animate-fade-in">
+        <h1 className="text-2xl font-bold gradient-text mb-2">Welcome back!</h1>
+        <p className="text-gray-400">
           Here's what's happening with your repositories and documentation.
         </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="glass-effect rounded-lg p-6 hover:bg-white/10 transition-all duration-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <FolderGit2 className="h-8 w-8 text-blue-600" />
+              <FolderGit2 className="h-8 w-8 text-primary-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Connected Repositories</p>
-              <p className="text-2xl font-semibold text-gray-900">{repositoryCount}</p>
+              <p className="text-sm font-medium text-gray-400">Connected Repositories</p>
+              <p className="text-2xl font-semibold text-gray-200">{repositoryCount}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="glass-effect rounded-lg p-6 hover:bg-white/10 transition-all duration-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <FileText className="h-8 w-8 text-green-600" />
+              <FileText className="h-8 w-8 text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Documentation Projects</p>
-              <p className="text-2xl font-semibold text-gray-900">0</p>
+              <p className="text-sm font-medium text-gray-400">Documentation Projects</p>
+              <p className="text-2xl font-semibold text-gray-200">0</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="glass-effect rounded-lg p-6 hover:bg-white/10 transition-all duration-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Clock className="h-8 w-8 text-yellow-600" />
+              <Clock className="h-8 w-8 text-yellow-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Generations This Month</p>
-              <p className="text-2xl font-semibold text-gray-900">0</p>
+              <p className="text-sm font-medium text-gray-400">Generations This Month</p>
+              <p className="text-2xl font-semibold text-gray-200">0</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="glass-effect rounded-lg p-6 hover:bg-white/10 transition-all duration-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <TrendingUp className="h-8 w-8 text-purple-600" />
+              <TrendingUp className="h-8 w-8 text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Coverage Score</p>
-              <p className="text-2xl font-semibold text-gray-900">0%</p>
+              <p className="text-sm font-medium text-gray-400">Coverage Score</p>
+              <p className="text-2xl font-semibold text-gray-200">0%</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="glass-effect rounded-lg">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Recent Activity</h2>
           <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">
+            <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">
               {hasGitHubConnection ? 'No recent activity' : 'No repositories connected'}
             </p>
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-gray-500 mt-2">
               {hasGitHubConnection 
                 ? 'Repository activity will appear here'
                 : 'Connect your first repository to get started'
@@ -129,8 +129,8 @@ export const DashboardPage = () => {
 
       {/* GitHub Integration */}
       {showGitHubIntegration && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">GitHub Integration</h2>
+        <div className="glass-effect rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">GitHub Integration</h2>
           <GitHubIntegration onInstallationComplete={handleInstallationComplete} />
         </div>
       )}
@@ -141,18 +141,18 @@ export const DashboardPage = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div className="glass-effect rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-gray-200 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button 
             onClick={handleConnectRepository}
-            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left transition-colors"
+            className="p-4 glass-effect border border-white/10 rounded-lg glass-hover text-left transition-all duration-200"
           >
-            <FolderGit2 className="h-6 w-6 text-blue-600 mb-2" />
-            <h3 className="font-medium text-gray-900">
+            <FolderGit2 className="h-6 w-6 text-primary-400 mb-2" />
+            <h3 className="font-medium text-gray-200">
               {hasGitHubConnection ? 'Manage Repositories' : 'Connect Repository'}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               {hasGitHubConnection 
                 ? 'View and manage your connected GitHub repositories'
                 : 'Link your GitHub repository to start generating documentation'
@@ -160,16 +160,16 @@ export const DashboardPage = () => {
             </p>
           </button>
           <button 
-            className={`p-4 border border-gray-200 rounded-lg text-left transition-colors ${
+            className={`p-4 glass-effect border border-white/10 rounded-lg text-left transition-all duration-200 ${
               hasGitHubConnection 
-                ? 'hover:bg-gray-50 cursor-pointer' 
+                ? 'glass-hover cursor-pointer' 
                 : 'opacity-50 cursor-not-allowed'
             }`}
             disabled={!hasGitHubConnection}
           >
-            <FileText className="h-6 w-6 text-green-600 mb-2" />
-            <h3 className="font-medium text-gray-900">Generate Documentation</h3>
-            <p className="text-sm text-gray-500">
+            <FileText className="h-6 w-6 text-green-400 mb-2" />
+            <h3 className="font-medium text-gray-200">Generate Documentation</h3>
+            <p className="text-sm text-gray-400">
               {hasGitHubConnection
                 ? 'Create comprehensive documentation for your codebase'
                 : 'Connect a repository first to enable documentation generation'

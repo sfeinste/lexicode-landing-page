@@ -87,14 +87,14 @@ export const DocumentationPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documentation</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-200">Documentation</h1>
+          <p className="text-gray-400 mt-1">
             View and manage your generated documentation
           </p>
         </div>
         <button 
           onClick={handleGenerateNew}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center"
+          className="gradient-bg text-white px-4 py-2 rounded-md hover:opacity-90 inline-flex items-center transition-all duration-200"
         >
           <Plus className="h-4 w-4 mr-2" />
           Generate Documentation
@@ -102,7 +102,7 @@ export const DocumentationPage = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass-effect rounded-lg p-6 border border-white/10">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -113,27 +113,27 @@ export const DocumentationPage = () => {
               placeholder="Search documentation by repository name, language..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-10 pr-3 py-2 border border-white/10 rounded-md leading-5 bg-dark-200 placeholder-gray-500 text-gray-200 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
         </div>
       </div>
 
       {/* Documentation List */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="glass-effect rounded-lg border border-white/10">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Documentation</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Your Documentation</h2>
           
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-red-600">{error}</p>
+              <p className="text-red-400">{error}</p>
               <button 
                 onClick={loadDocumentation}
-                className="mt-4 text-blue-600 hover:text-blue-800"
+                className="mt-4 text-primary-400 hover:text-primary-300"
               >
                 Try again
               </button>
@@ -141,16 +141,16 @@ export const DocumentationPage = () => {
           ) : filteredDocumentation.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-200 mb-2">
                 {searchTerm ? 'No documentation found matching your search' : 'No documentation generated yet'}
               </h3>
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-400 mb-6">
                 {searchTerm ? 'Try a different search term' : 'Generate documentation for your repositories to get started'}
               </p>
               {!searchTerm && (
                 <button 
                   onClick={handleGenerateNew}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 inline-flex items-center"
+                  className="gradient-bg text-white px-6 py-2 rounded-md hover:opacity-90 inline-flex items-center transition-all duration-200"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Generate Your First Documentation
@@ -160,15 +160,15 @@ export const DocumentationPage = () => {
           ) : (
             <div className="space-y-4">
               {filteredDocumentation.map((doc) => (
-                <div key={doc.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div key={doc.id} className="glass-effect border border-white/10 rounded-lg p-6 hover:bg-white/10 transition-all duration-200">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-start space-x-3">
-                      <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                      <FileText className="h-6 w-6 text-primary-400 mt-1" />
                       <div>
-                        <h3 className="font-medium text-gray-900 text-lg">
+                        <h3 className="font-medium text-gray-200 text-lg">
                           {doc.repository?.repo_full_name || 'Unknown Repository'}
                         </h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
                           {doc.repository?.language && (
                             <span className="flex items-center">
                               <span 
@@ -190,20 +190,20 @@ export const DocumentationPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
                         Generated
                       </span>
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-between mt-4">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-400">
                       Documentation size: {Math.round(doc.content.length / 1024)}KB
                     </div>
                     <div className="flex space-x-2">
                       <button 
                         onClick={() => handleViewDocumentation(doc.repository_id)}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center px-3 py-1 glass-effect border border-white/10 rounded-md text-sm font-medium text-gray-300 glass-hover transition-all duration-200"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View
@@ -212,7 +212,7 @@ export const DocumentationPage = () => {
                         href={`https://github.com/${doc.repository?.repo_full_name}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center px-3 py-1 glass-effect border border-white/10 rounded-md text-sm font-medium text-gray-300 glass-hover transition-all duration-200"
                       >
                         <ExternalLink className="h-4 w-4 mr-1" />
                         GitHub

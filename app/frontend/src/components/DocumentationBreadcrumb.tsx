@@ -49,8 +49,8 @@ export const DocumentationBreadcrumb: React.FC<DocumentationBreadcrumbProps> = (
             className={`
               flex items-center space-x-1 px-2 py-1 rounded
               ${index === items.length - 1 
-                ? 'text-gray-900 font-medium cursor-default' 
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'text-gray-200 font-medium cursor-default' 
+                : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
               }
             `}
             disabled={index === items.length - 1}

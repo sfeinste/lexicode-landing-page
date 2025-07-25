@@ -43,21 +43,21 @@ export const GitHubIntegration = ({ onInstallationComplete }: GitHubIntegrationP
 
   if (hasInstallations) {
     return (
-      <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
         <div className="flex items-center space-x-3">
-          <CheckCircle className="h-5 w-5 text-green-600" />
+          <CheckCircle className="h-5 w-5 text-green-400" />
           <div>
-            <h3 className="font-medium text-green-900">GitHub Connected</h3>
-            <p className="text-sm text-green-700">
+            <h3 className="font-medium text-green-400">GitHub Connected</h3>
+            <p className="text-sm text-green-300">
               {repositoryCount} {repositoryCount === 1 ? 'repository' : 'repositories'} accessible
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+          <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-full font-medium">
             Active
           </span>
-          <Github className="h-5 w-5 text-green-600" />
+          <Github className="h-5 w-5 text-green-400" />
         </div>
       </div>
     );
@@ -66,36 +66,36 @@ export const GitHubIntegration = ({ onInstallationComplete }: GitHubIntegrationP
   return (
     <div className="space-y-4">
       {error && (
-        <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <AlertCircle className="h-4 w-4 text-red-400" />
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
       
-      <div className="p-6 border border-gray-200 rounded-lg bg-white">
+      <div className="p-6 glass-effect border border-white/10 rounded-lg">
         <div className="flex items-center space-x-3 mb-4">
-          <div className="p-2 bg-gray-900 rounded-lg">
+          <div className="p-2 gradient-bg rounded-lg">
             <Github className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Connect GitHub</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-semibold text-gray-200">Connect GitHub</h3>
+            <p className="text-sm text-gray-400">
               Connect your GitHub account to access your repositories
             </p>
           </div>
         </div>
         
         <div className="space-y-3 mb-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <CheckCircle className="h-4 w-4 text-green-400" />
             <span>Secure access to your repositories</span>
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <CheckCircle className="h-4 w-4 text-green-400" />
             <span>Automatic documentation generation</span>
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <CheckCircle className="h-4 w-4 text-green-400" />
             <span>Real-time updates via webhooks</span>
           </div>
         </div>
@@ -103,7 +103,7 @@ export const GitHubIntegration = ({ onInstallationComplete }: GitHubIntegrationP
         <button
           onClick={handleConnectGitHub}
           disabled={isLoading}
-          className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center space-x-2 px-4 py-2 gradient-bg text-white rounded-lg hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
@@ -119,7 +119,7 @@ export const GitHubIntegration = ({ onInstallationComplete }: GitHubIntegrationP
           )}
         </button>
         
-        <p className="text-xs text-gray-500 mt-3 text-center">
+        <p className="text-xs text-gray-400 mt-3 text-center">
           This will open GitHub in a new window to authorize the Lexicode app
         </p>
       </div>

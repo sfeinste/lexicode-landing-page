@@ -78,7 +78,7 @@ export const DocumentationViewPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader className="h-8 w-8 animate-spin text-primary-400" />
       </div>
     );
   }
@@ -86,7 +86,7 @@ export const DocumentationViewPage = () => {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Always show multi-page view */}
-      <div className="bg-white rounded-lg shadow h-[calc(100vh-200px)]">
+      <div className="glass-effect rounded-lg border border-white/10 h-[calc(100vh-200px)]">
         <MultiPageDocumentationView
           repositoryId={repositoryId!}
           repositoryName={repositoryName}

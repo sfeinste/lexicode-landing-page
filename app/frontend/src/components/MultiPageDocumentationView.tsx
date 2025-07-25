@@ -192,7 +192,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="animate-spin h-8 w-8 text-blue-600" />
+        <Loader className="animate-spin h-8 w-8 text-primary-400" />
       </div>
     );
   }
@@ -200,11 +200,11 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
   if (error && !fileList.length) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600 mb-4">{error}</p>
+        <p className="text-red-400 mb-4">{error}</p>
         {onRegenerate && (
           <button
             onClick={onRegenerate}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 gradient-bg text-white rounded hover:opacity-90 transition-all duration-200"
           >
             Generate Documentation
           </button>
@@ -219,7 +219,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
       <div className={`
         ${isSidebarOpen ? 'w-64' : 'w-0'} 
         transition-all duration-300 overflow-hidden
-        bg-gray-50 border-r border-gray-200 flex-shrink-0
+        glass-effect border-r border-white/10 flex-shrink-0
         ${isSidebarOpen ? 'absolute lg:relative inset-y-0 left-0 z-40 lg:z-auto' : ''}
       `}>
         <div className="p-4 h-full flex flex-col">
@@ -239,11 +239,11 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
                   onClick={loadSummary}
                   className={`
                     w-full text-left px-3 py-2 rounded flex items-center
-                    ${!selectedFile ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}
+                    ${!selectedFile ? 'bg-primary-500/20 text-primary-400' : 'hover:bg-white/5'}
                   `}
                 >
                   <Home className="w-4 h-4 mr-2" />
-                  Repository Overview
+                  <span className="text-gray-200">Repository Overview</span>
                 </button>
               </div>
               
@@ -262,7 +262,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
       {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -270,12 +270,12 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
       {/* Main content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="glass-effect border-b border-white/10 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="mr-4 p-2 hover:bg-gray-100 rounded"
+                className="mr-4 p-2 hover:bg-white/10 rounded text-gray-300"
               >
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -305,7 +305,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
                       if (prevFile) loadFileDocumentation(prevFile);
                     }}
                     disabled={!getAdjacentFile('prev')}
-                    className="p-2 hover:bg-gray-100 rounded disabled:opacity-50"
+                    className="p-2 hover:bg-white/10 rounded disabled:opacity-50 text-gray-300"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -315,7 +315,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
                       if (nextFile) loadFileDocumentation(nextFile);
                     }}
                     disabled={!getAdjacentFile('next')}
-                    className="p-2 hover:bg-gray-100 rounded disabled:opacity-50"
+                    className="p-2 hover:bg-white/10 rounded disabled:opacity-50 text-gray-300"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -324,7 +324,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
               
               <button
                 onClick={handleDownload}
-                className="p-2 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-white/10 rounded text-gray-300"
                 title="Download documentation"
               >
                 <Download className="w-5 h-5" />
@@ -333,7 +333,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
               {onRegenerate && (
                 <button
                   onClick={onRegenerate}
-                  className="p-2 hover:bg-gray-100 rounded"
+                  className="p-2 hover:bg-white/10 rounded text-gray-300"
                   title="Regenerate documentation"
                 >
                   <RefreshCw className="w-5 h-5" />
@@ -344,7 +344,7 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
           
           {/* File metadata */}
           {selectedFile && currentDoc && 'file_type' in currentDoc && (
-            <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
+            <div className="mt-2 flex items-center space-x-4 text-sm text-gray-400">
               <span>Type: {currentDoc.file_type}</span>
               <span>Language: {currentDoc.language}</span>
               <span>Lines: {currentDoc.lines_of_code}</span>
@@ -357,35 +357,35 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
           {isLoadingDoc ? (
             <DocumentationSkeleton />
           ) : currentDoc ? (
-            <div className="prose prose-blue max-w-none prose-headings:font-bold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-pre:bg-gray-100 prose-pre:overflow-x-auto">
+            <div className="prose prose-invert max-w-none prose-headings:text-gray-200 prose-headings:font-bold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-p:text-gray-300 prose-strong:text-gray-200 prose-em:text-gray-300 prose-pre:bg-dark-200 prose-pre:border prose-pre:border-white/10 prose-pre:overflow-x-auto prose-code:text-primary-400 prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline prose-li:text-gray-300 prose-td:text-gray-300 prose-th:text-gray-200">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
                   pre: ({ node, ...props }) => (
-                    <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto" {...props} />
+                    <pre className="bg-dark-200 border border-white/10 p-4 rounded-md overflow-x-auto" {...props} />
                   ),
                   code: ({ node, inline, ...props }) => (
                     inline 
-                      ? <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />
-                      : <code {...props} />
+                      ? <code className="bg-dark-200 border border-white/10 px-1 py-0.5 rounded text-sm text-primary-400" {...props} />
+                      : <code className="text-primary-400" {...props} />
                   ),
                   h1: ({ node, ...props }) => (
-                    <h1 className="text-3xl font-bold mb-4 mt-6" {...props} />
+                    <h1 className="text-3xl font-bold mb-4 mt-6 text-gray-200" {...props} />
                   ),
                   h2: ({ node, ...props }) => (
-                    <h2 className="text-2xl font-bold mb-3 mt-5" {...props} />
+                    <h2 className="text-2xl font-bold mb-3 mt-5 text-gray-200" {...props} />
                   ),
                   h3: ({ node, ...props }) => (
-                    <h3 className="text-xl font-bold mb-2 mt-4" {...props} />
+                    <h3 className="text-xl font-bold mb-2 mt-4 text-gray-200" {...props} />
                   ),
                   p: ({ node, ...props }) => (
-                    <p className="mb-4 leading-relaxed" {...props} />
+                    <p className="mb-4 leading-relaxed text-gray-300" {...props} />
                   ),
                   ul: ({ node, ...props }) => (
-                    <ul className="list-disc list-inside mb-4 space-y-1" {...props} />
+                    <ul className="list-disc list-inside mb-4 space-y-1 text-gray-300" {...props} />
                   ),
                   ol: ({ node, ...props }) => (
-                    <ol className="list-decimal list-inside mb-4 space-y-1" {...props} />
+                    <ol className="list-decimal list-inside mb-4 space-y-1 text-gray-300" {...props} />
                   ),
                 }}
               >
@@ -393,8 +393,8 @@ export const MultiPageDocumentationView: React.FC<MultiPageDocumentationViewProp
               </ReactMarkdown>
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-12">
-              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center text-gray-400 py-12">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-500" />
               <p>Select a file to view its documentation</p>
             </div>
           )}

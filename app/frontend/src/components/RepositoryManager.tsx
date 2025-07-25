@@ -164,11 +164,11 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="glass-effect rounded-lg p-8 max-w-md w-full mx-4 border border-white/10">
           <div className="flex items-center justify-center space-x-3">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-            <span className="text-lg">Loading repositories...</span>
+            <Loader2 className="h-6 w-6 animate-spin text-primary-400" />
+            <span className="text-lg text-gray-200">Loading repositories...</span>
           </div>
         </div>
       </div>
@@ -176,26 +176,26 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass-effect rounded-lg border border-white/10 max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-white/10">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Manage Repository Access</h2>
+            <h2 className="text-xl font-semibold text-gray-200">Manage Repository Access</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-200 transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
           </div>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-400 mt-1">
             Select which repositories Lexicode can access for documentation generation
           </p>
         </div>
 
         {/* Search */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-white/10">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -203,15 +203,15 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
               placeholder="Search repositories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-gray-200 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="px-6 py-3 bg-red-50 border-b border-red-200">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="px-6 py-3 bg-red-500/10 border-b border-red-500/30">
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
@@ -220,7 +220,7 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
           {filteredRepos.length === 0 ? (
             <div className="text-center py-8">
               <GitBranch className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
+              <p className="text-gray-400">
                 {searchTerm ? 'No repositories match your search' : 'No repositories available'}
               </p>
             </div>
@@ -229,10 +229,10 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
               {filteredRepos.map((repo) => (
                 <div
                   key={repo.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                     selectedRepos.has(repo.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary-500/50 bg-primary-500/10'
+                      : 'border-white/10 hover:bg-white/5'
                   }`}
                   onClick={() => handleRepoToggle(repo.id)}
                 >
@@ -244,24 +244,24 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
                         ) : (
                           <Globe className="h-4 w-4 text-gray-500" />
                         )}
-                        <h3 className="font-medium text-gray-900 truncate">
+                        <h3 className="font-medium text-gray-200 truncate">
                           {repo.full_name}
                         </h3>
                         {selectedRepos.has(repo.id) && (
-                          <Check className="h-4 w-4 text-blue-600" />
+                          <Check className="h-4 w-4 text-primary-400" />
                         )}
                       </div>
                       
                       {repo.description && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-sm text-gray-400 mb-2 line-clamp-2">
                           {repo.description}
                         </p>
                       )}
                       
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <div className="flex items-center space-x-4 text-xs text-gray-400">
                         {repo.language && (
                           <span className="flex items-center">
-                            <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span>
+                            <span className="w-2 h-2 rounded-full bg-primary-400 mr-1"></span>
                             {repo.language}
                           </span>
                         )}
@@ -279,22 +279,22 @@ export const RepositoryManager = ({ onClose }: RepositoryManagerProps) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-t border-white/10">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-400">
               {selectedRepos.size} {selectedRepos.size === 1 ? 'repository' : 'repositories'} selected
             </div>
             <div className="flex items-center space-x-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 text-sm font-medium text-gray-300 glass-effect border border-white/10 rounded-md glass-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving || !hasChanges()}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-4 py-2 text-sm font-medium text-white gradient-bg border border-transparent rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-200"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 <span>{saving ? 'Saving...' : 'Save Changes'}</span>

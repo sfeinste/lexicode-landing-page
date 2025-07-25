@@ -37,27 +37,27 @@ const FileNode: React.FC<FileNodeProps> = ({ node, onFileSelect, selectedPath, l
   const getFileIcon = () => {
     if (node.type === 'folder') {
       return isExpanded ? (
-        <FolderOpen className="w-4 h-4 text-blue-500" />
+        <FolderOpen className="w-4 h-4 text-primary-400" />
       ) : (
-        <Folder className="w-4 h-4 text-blue-500" />
+        <Folder className="w-4 h-4 text-primary-400" />
       );
     }
     
     // File icon with language-specific colors
-    let iconColor = 'text-gray-500';
+    let iconColor = 'text-gray-400';
     if (node.language) {
       const langColors: { [key: string]: string } = {
-        typescript: 'text-blue-600',
-        javascript: 'text-yellow-600',
-        python: 'text-green-600',
-        java: 'text-red-600',
-        go: 'text-cyan-600',
-        rust: 'text-orange-600',
-        html: 'text-orange-500',
-        css: 'text-blue-500',
-        json: 'text-gray-600',
+        typescript: 'text-primary-400',
+        javascript: 'text-yellow-400',
+        python: 'text-green-400',
+        java: 'text-red-400',
+        go: 'text-cyan-400',
+        rust: 'text-orange-400',
+        html: 'text-orange-400',
+        css: 'text-blue-400',
+        json: 'text-gray-400',
       };
-      iconColor = langColors[node.language.toLowerCase()] || 'text-gray-500';
+      iconColor = langColors[node.language.toLowerCase()] || 'text-gray-400';
     }
     
     return <File className={`w-4 h-4 ${iconColor}`} />;
@@ -67,9 +67,9 @@ const FileNode: React.FC<FileNodeProps> = ({ node, onFileSelect, selectedPath, l
     <div>
       <div
         className={`
-          flex items-center px-2 py-1 cursor-pointer hover:bg-gray-100 rounded
-          ${isSelected ? 'bg-blue-50 text-blue-700' : ''}
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+          flex items-center px-2 py-1 cursor-pointer hover:bg-white/5 rounded
+          ${isSelected ? 'bg-primary-500/20 text-primary-400' : ''}
+          focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:ring-offset-dark-300
         `}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleSelect}
@@ -78,7 +78,7 @@ const FileNode: React.FC<FileNodeProps> = ({ node, onFileSelect, selectedPath, l
       >
         {node.type === 'folder' && (
           <button
-            className="mr-1 p-0.5 hover:bg-gray-200 rounded"
+            className="mr-1 p-0.5 hover:bg-white/10 rounded"
             onClick={handleToggle}
           >
             {isExpanded ? (
@@ -92,12 +92,12 @@ const FileNode: React.FC<FileNodeProps> = ({ node, onFileSelect, selectedPath, l
         
         <span className="mr-2">{getFileIcon()}</span>
         
-        <span className={`text-sm ${node.hasDocumentation === false ? 'opacity-50' : ''}`}>
+        <span className={`text-sm text-gray-200 ${node.hasDocumentation === false ? 'opacity-50' : ''}`}>
           {node.name}
         </span>
         
         {node.type === 'file' && node.hasDocumentation === false && (
-          <span className="ml-2 text-xs text-gray-400">(no docs)</span>
+          <span className="ml-2 text-xs text-gray-500">(no docs)</span>
         )}
       </div>
       

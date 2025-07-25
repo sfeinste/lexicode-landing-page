@@ -130,17 +130,17 @@ export const RepositoriesPage = () => {
   const getLanguageColor = (language?: string) => {
     const colors: Record<string, string> = {
       JavaScript: 'bg-yellow-400',
-      TypeScript: 'bg-blue-600',
-      Python: 'bg-blue-500',
-      Java: 'bg-orange-500',
-      Go: 'bg-cyan-500',
-      Ruby: 'bg-red-500',
-      PHP: 'bg-purple-500',
-      'C++': 'bg-pink-500',
-      C: 'bg-gray-500',
+      TypeScript: 'bg-primary-400',
+      Python: 'bg-blue-400',
+      Java: 'bg-orange-400',
+      Go: 'bg-cyan-400',
+      Ruby: 'bg-red-400',
+      PHP: 'bg-purple-400',
+      'C++': 'bg-pink-400',
+      C: 'bg-gray-400',
       Swift: 'bg-orange-400',
       Kotlin: 'bg-purple-400',
-      Rust: 'bg-orange-600',
+      Rust: 'bg-orange-400',
     };
     return colors[language || ''] || 'bg-gray-400';
   };
@@ -225,7 +225,7 @@ export const RepositoriesPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
       </div>
     );
   }
@@ -235,8 +235,8 @@ export const RepositoriesPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Repositories</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-200">Repositories</h1>
+          <p className="text-gray-400 mt-1">
             Manage and analyze your connected GitHub repositories
           </p>
         </div>
@@ -244,14 +244,14 @@ export const RepositoriesPage = () => {
           <button
             onClick={() => loadRepositories(true)}
             disabled={refreshing}
-            className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            className="text-gray-400 hover:text-gray-200 p-2 rounded-lg glass-hover disabled:opacity-50"
             title="Refresh repositories"
           >
             <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setShowRepositoryManager(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center"
+            className="gradient-bg text-white px-4 py-2 rounded-md hover:opacity-90 inline-flex items-center transition-all duration-200"
           >
             <Plus className="h-4 w-4 mr-2" />
             Manage Repositories
@@ -260,7 +260,7 @@ export const RepositoriesPage = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass-effect rounded-lg p-6 border border-white/10">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -271,14 +271,14 @@ export const RepositoriesPage = () => {
               placeholder="Search repositories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-10 pr-3 py-2 border border-white/10 rounded-md leading-5 bg-dark-200 placeholder-gray-500 text-gray-200 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
           <div className="flex gap-2">
             <select
               value={languageFilter}
               onChange={(e) => setLanguageFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-white/10 rounded-md px-3 py-2 bg-dark-200 text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="all">All Languages</option>
               {getUniqueLanguages().map(lang => (
@@ -288,7 +288,7 @@ export const RepositoriesPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-white/10 rounded-md px-3 py-2 bg-dark-200 text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -301,17 +301,17 @@ export const RepositoriesPage = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
-          <span className="text-red-700">{error}</span>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-400 mr-3" />
+          <span className="text-red-400">{error}</span>
         </div>
       )}
 
       {/* Repository List */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="glass-effect rounded-lg border border-white/10">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-200">
               Connected Repositories ({filteredRepositories.length})
             </h2>
           </div>
@@ -319,10 +319,10 @@ export const RepositoriesPage = () => {
           {filteredRepositories.length === 0 ? (
             <div className="text-center py-12">
               <FolderGit2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-200 mb-2">
                 {repositories.length === 0 ? 'No repositories connected' : 'No repositories match your filters'}
               </h3>
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-400 mb-6">
                 {repositories.length === 0 
                   ? 'Connect your first GitHub repository to start generating documentation'
                   : 'Try adjusting your search or filters'
@@ -331,7 +331,7 @@ export const RepositoriesPage = () => {
               {repositories.length === 0 && (
                 <button
                   onClick={() => setShowRepositoryManager(true)}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 inline-flex items-center"
+                  className="gradient-bg text-white px-6 py-2 rounded-md hover:opacity-90 inline-flex items-center transition-all duration-200"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Connect Your First Repository
@@ -343,7 +343,7 @@ export const RepositoriesPage = () => {
               {filteredRepositories.map((repo) => (
                 <div
                   key={repo.id}
-                  className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  className="glass-effect border border-white/10 rounded-lg p-6 hover:bg-white/10 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -356,21 +356,21 @@ export const RepositoriesPage = () => {
                             ) : (
                               <Globe className="h-5 w-5 text-gray-500" />
                             )}
-                            <h3 className="text-lg font-semibold text-gray-900">
+                            <h3 className="text-lg font-semibold text-gray-200">
                               {repo.repo_full_name}
                             </h3>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               repo.access_status === 'active' 
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-green-500/20 text-green-400'
                                 : repo.access_status === 'suspended'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-red-500/20 text-red-400'
                             }`}>
                               {repo.access_status}
                             </span>
                           </div>
                           {repo.description && (
-                            <p className="text-sm text-gray-600 mb-3">{repo.description}</p>
+                            <p className="text-sm text-gray-400 mb-3">{repo.description}</p>
                           )}
                         </div>
                         <div className="flex items-center space-x-2">
@@ -379,19 +379,19 @@ export const RepositoriesPage = () => {
                             disabled={loadingStates[repo.id]}
                             className={`px-3 py-1 text-sm rounded-md ${
                               loadingStates[repo.id] 
-                                ? 'bg-gray-400 cursor-not-allowed' 
-                                : 'bg-blue-600 hover:bg-blue-700'
-                            } text-white`}
+                                ? 'bg-gray-600 cursor-not-allowed' 
+                                : 'gradient-bg hover:opacity-90'
+                            } text-white transition-all duration-200`}
                           >
                             {loadingStates[repo.id] ? 'Generating...' : 'Generate Docs'}
                           </button>
                           <button
                             onClick={() => handleViewDocs(repo.id)}
-                            className="px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                            className="px-3 py-1 text-sm border border-white/10 text-gray-300 rounded-md glass-hover"
                           >
                             <FileText className="h-4 w-4" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button className="p-1 text-gray-400 hover:text-gray-200">
                             <MoreVertical className="h-5 w-5" />
                           </button>
                         </div>
@@ -399,14 +399,14 @@ export const RepositoriesPage = () => {
 
                       {/* Error Message */}
                       {errorStates[repo.id] && (
-                        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                          <p className="text-sm text-red-800">{errorStates[repo.id]}</p>
+                        <div className="mb-3 p-3 bg-red-500/10 border border-red-500/30 rounded-md">
+                          <p className="text-sm text-red-400">{errorStates[repo.id]}</p>
                         </div>
                       )}
 
                       {/* Repository Stats */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-400">
                           <Code2 className="h-4 w-4 text-gray-400" />
                           <span>
                             {repo.language ? (
@@ -419,22 +419,22 @@ export const RepositoriesPage = () => {
                             )}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-400">
                           <GitBranch className="h-4 w-4 text-gray-400" />
                           <span>{repo.default_branch}</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-400">
                           <Star className="h-4 w-4 text-gray-400" />
                           <span>{repo.stars_count || 0} stars</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2 text-sm text-gray-400">
                           <Package className="h-4 w-4 text-gray-400" />
                           <span>{formatSize(repo.size)}</span>
                         </div>
                       </div>
 
                       {/* Repository Metadata */}
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
                           Last pushed: {formatDate(repo.last_push_at)}
@@ -454,7 +454,7 @@ export const RepositoriesPage = () => {
                             href={repo.homepage}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center hover:text-blue-600"
+                            className="flex items-center hover:text-primary-400"
                           >
                             <ExternalLink className="h-4 w-4 mr-1" />
                             Website
@@ -468,7 +468,7 @@ export const RepositoriesPage = () => {
                           {repo.topics.map((topic) => (
                             <span
                               key={topic}
-                              className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+                              className="px-2 py-1 text-xs bg-primary-500/20 text-primary-400 rounded-full"
                             >
                               {topic}
                             </span>
