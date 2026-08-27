@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lexicode runs a roster of coding agents against your repository, from a board you already know how to use.">
+<title>Lexicode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root {
+    --ground: #F4F6FB;
+    --paper: #FFFFFF;
+    --ink: #1B2333;
+    --muted: #5A6478;
+    --indigo: #4F46E5;
+    --indigo-deep: #4338CA;
+    --border: #E3E7F0;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- nav, shaped like the app's own top bar ---- */
+  nav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 0;
+  }
+  .wordmark { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
+  .spark { color: var(--indigo); font-size: 20px; line-height: 1; }
+  nav .cta-quiet { margin-left: auto; }
+
+  /* ---- hero ---- */
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--indigo);
+    background: #EEF0FD;
+    border: 1px solid #DDE1FA;
+    border-radius: 999px;
+    padding: 5px 14px;
+    margin-bottom: 26px;
+  }
+  h1 {
+    font-size: clamp(40px, 7vw, 64px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .hero p {
+    max-width: 34em;
+    margin: 0 auto 32px;
+    font-size: 19px;
+    color: var(--muted);
+    text-wrap: balance;
+  }
+  .cta-row { display: flex; gap: 14px; justify-content: center; align-items: center; }
+  .cta {
+    display: inline-block;
+    background: var(--indigo);
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    padding: 12px 26px;
+    border-radius: 10px;
+    transition: background 120ms ease;
+  }
+  .cta:hover { background: var(--indigo-deep); }
+  .cta:focus-visible, .cta-quiet:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
+  .cta-quiet {
+    color: var(--indigo);
+    font-weight: 600;
+    font-size: 16px;
+    text-decoration: none;
+    padding: 12px 10px;
+    border-radius: 10px;
+  }
+  .cta-quiet:hover { text-decoration: underline; }
+
+  /* ---- screenshot frames ---- */
+  .frame {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px -24px rgba(27, 35, 51, 0.25), 0 4px 14px -6px rgba(27, 35, 51, 0.1);
+  }
+  .frame-bar {
+    display: flex; justify-content: center; align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    background: #FAFBFE;
+  }
+  .frame-url {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 18px;
+  }
+  .frame img { display: block; width: 100%; height: auto; }
+  .hero-shot { padding: 48px 0 8px; }
+
+  /* ---- claim pair ---- */
+  .claims {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+    padding: 88px 0 40px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) { .claims { grid-template-columns: 1fr; gap: 40px; padding-top: 64px; } }
+  .claims h2 { font-size: 23px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 10px; }
+  .claims p { margin: 0; color: var(--muted); font-size: 16.5px; }
+
+  /* ---- run section ---- */
+  .run-section { padding: 56px 0 24px; }
+  .run-head { max-width: 620px; margin: 0 auto 40px; text-align: center; }
+  .run-head h2 {
+    font-size: clamp(28px, 4.5vw, 38px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .run-head p { margin: 0; color: var(--muted); font-size: 17.5px; }
+  .run-stats {
+    display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
+    margin-top: 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .run-stats span::before { content: "\00B7  "; color: var(--indigo); }
+
+  /* ---- capability grid: pairs at every width, never a row of three ---- */
+  .capabilities {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 320px));
+    justify-content: center;
+    gap: 18px 56px;
+    padding: 72px 0 8px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 15.5px;
+    font-weight: 500;
+  }
+  @media (max-width: 640px) { .capabilities { grid-template-columns: minmax(0, 320px); } }
+  .capabilities strong { color: var(--ink); font-weight: 600; }
+  .capabilities .cap { text-align: center; }
+
+  /* ---- closing ---- */
+  .closing { text-align: center; padding: 88px 0 40px; }
+  .closing h2 {
+    font-size: clamp(30px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .closing p { color: var(--muted); font-size: 17.5px; max-width: 30em; margin: 0 auto 30px; }
+  .command {
+    display: inline-flex; align-items: baseline; gap: 12px;
+    font-family: var(--mono);
+    font-size: 15px;
+    background: var(--ink);
+    color: #E6EAF2;
+    border-radius: 10px;
+    padding: 13px 22px;
+    margin-bottom: 30px;
+  }
+  .command .p { color: #818CF8; user-select: none; }
+  footer {
+    border-top: 1px solid var(--border);
+    margin-top: 56px;
+    padding: 26px 0 40px;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  /* ---- entrance ---- */
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .rise-late { animation: rise 900ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: none; }
+    }
+  }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <nav>
+    <div class="wordmark"><span class="spark" aria-hidden="true">&#10022;</span>Lexicode</div>
+    <a class="cta-quiet" href="#run">See it run &#8595;</a>
+  </nav>
+
+  <header class="hero">
+    <div class="eyebrow rise">Agent-driven development</div>
+    <h1 class="rise">Tickets in.<br>Pull requests out.</h1>
+    <p class="rise">
+      Lexicode runs a roster of coding agents against your repository, from a board you
+      already know how to use. Write the ticket, delegate it, review the PR.
+    </p>
+    <div class="cta-row rise">
+      <a class="cta" href="#get">Run it locally</a>
+      <a class="cta-quiet" href="#run">How a run looks</a>
+    </div>
+  </header>
+
+  <div class="hero-shot rise-late">
+    <div class="frame">
+      <div class="frame-bar"><span class="frame-url">localhost:7717 / board</span></div>
+      <img src="assets/board.png" alt="The Lexicode board: kanban columns of tickets, a Needs you lane, and a New ticket button" loading="eager">
+    </div>
+  </div>
+
+  <section class="claims">
+    <div>
+      <h2>Delegating is deliberate</h2>
+      <p>
+        Nothing spends a dollar until you say run. Dragging a card never starts an agent &#8212;
+        starting one is its own visible act, and the board answers with where the run
+        actually is, not a hopeful &#8220;started&#8221;.
+      </p>
+    </div>
+    <div>
+      <h2>You stay the reviewer</h2>
+      <p>
+        Agents open pull requests; they never merge them. Reviews, approvals, and every
+        question an agent can&#8217;t answer land in one inbox that only ever shows what needs
+        a human.
+      </p>
+    </div>
+  </section>
+
+  <section class="run-section" id="run">
+    <div class="run-head">
+      <h2>Every run is a timeline you can read</h2>
+      <p>
+        Each command, each file, the context the agent was given, what it cost &#8212; and the
+        failures, in red, exactly where they happened. When it ends, the output is a
+        branch and a pull request, not a story.
+      </p>
+      <div class="run-stats">
+        <span>41m 44s</span>
+        <span>156k tokens</span>
+        <span>~$26.15</span>
+        <span>PR #10 opened</span>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="frame-bar"><span class="frame-url">localhost:7717 / runs / 36</span></div>
+      <img src="assets/run.png" alt="A completed Lexicode run: a step-by-step timeline of commands, the loaded context with token counts, and an opened pull request" loading="lazy">
+    </div>
+  </section>
+
+  <p class="capabilities">
+    <span class="cap"><strong>Triggers</strong> start agents when the repo moves</span>
+    <span class="cap"><strong>Reviews</strong> loop until the work holds up</span>
+    <span class="cap"><strong>A wiki</strong> your agents actually read</span>
+    <span class="cap"><strong>Budgets</strong> that stop runs, not surprise you</span>
+  </p>
+
+  <section class="closing" id="get">
+    <h2>One binary. Your repo.<br>Your machine.</h2>
+    <p>
+      Lexicode is a single local binary: it serves the board, runs agents in containers,
+      and talks to GitHub with your token. Nothing leaves your machine that you didn&#8217;t
+      send.
+    </p>
+    <div class="command"><span class="p">$</span>lexicode serve</div>
+    <div class="cta-row">
+      <a class="cta" href="https://github.com/sfeinste/lexicode">View on GitHub</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>&#10022; Lexicode</span>
+    <span>Built by agents, reviewed by a human.</span>
+  </footer>
+</div>
+
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init("phc_WAXS0mbxKDaV1zzzAF9BoseNwftAsU6MxlXyoWa3hJN", {
+    api_host: "https://us.i.posthog.com",
+    person_profiles: "identified_only",
+  });
+</script>
+</body>
+</html>
